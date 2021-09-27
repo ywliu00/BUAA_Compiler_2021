@@ -3,8 +3,8 @@ import Exceptions.LexicalException;
 import java.util.LinkedList;
 
 public class LexicalAnalyzer {
-    StringBuilder programStr;
-    LinkedList<Token> tokenList;
+    private StringBuilder programStr;
+    private LinkedList<Token> tokenList;
 
     public LexicalAnalyzer() {
         this.tokenList = new LinkedList<>();
