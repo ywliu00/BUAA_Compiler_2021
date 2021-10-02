@@ -14,7 +14,7 @@ public class Token extends SyntaxClass{
     private String tokenContext;
 
     public Token(int type, int lineNum, String context) {
-        super(lineNum);
+        super(lineNum, SyntaxClass.TOKEN);
         this.tokenType = type;
         this.tokenContext = context;
     }
