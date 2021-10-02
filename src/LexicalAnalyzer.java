@@ -1,4 +1,5 @@
 import Exceptions.LexicalException;
+import SyntaxClasses.Token;
 
 import java.util.LinkedList;
 

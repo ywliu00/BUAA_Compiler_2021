@@ -1,4 +1,6 @@
-public class Token {
+package SyntaxClasses;
+
+public class Token extends SyntaxClass{
     public static final int IDENFR = 0, INTCON = 1, STRCON = 2, MAINTK = 3, CONSTTK = 4, INTTK = 5,
             BREAKTK = 6, CONTINUETK = 7, IFTK = 8, ELSETK = 9, NOT = 10, AND = 11, OR = 12, WHILETK = 13,
             GETINTTK = 14, PRINTFTK = 15, RETURNTK = 16, PLUS = 17, MINU = 18, VOIDTK = 19,
@@ -8,30 +10,25 @@ public class Token {
             "BREAKTK", "CONTINUETK", "IFTK", "ELSETK", "NOT", "AND", "OR", "WHILETK", "GETINTTK", "PRINTFTK",
             "RETURNTK", "PLUS", "MINU", "VOIDTK", "MULT", "DIV", "MOD", "LSS", "LEQ", "GRE", "GEQ", "EQL", "NEQ",
             "ASSIGN", "SEMICN", "COMMA", "LPARENT", "RPARENT", "LBRACK", "RBRACK", "LBRACE", "RBRACE"};
-    private int type;
-    private int lineNo;
-    private String context;
+    private int tokenType;
+    private String tokenContext;
 
     public Token(int type, int lineNum, String context) {
-        this.type = type;
-        this.lineNo = lineNum;
-        this.context = context;
+        super(lineNum);
+        this.tokenType = type;
+        this.tokenContext = context;
     }
 
-    public int getLineNo() {
-        return lineNo;
+    public int getTokenType() {
+        return tokenType;
     }
 
-    public int getType() {
-        return type;
-    }
-
-    public String getContext() {
-        return context;
+    public String getTokenContext() {
+        return tokenContext;
     }
 
     @Override
     public String toString() {
-        return typeNames[this.type] + " " + this.context;
+        return typeNames[this.tokenType] + " " + this.tokenContext;
     }
 }
