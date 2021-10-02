@@ -516,12 +516,14 @@ public class SyntaxAnalyzer {
         }
         SyntaxClass funcFParams = new SyntaxClass(SyntaxClass.FUNCFPARAMS);
         SyntaxClass param;
+        // 检查必须有的FuncFParam
         param = readFuncFParam();
         if (param == null) {
             throw new SyntaxException();
         } else {
             funcFParams.appendSonNode(param);
         }
+        // 如果有逗号，说明后面还有
         while (tokenList.get(pos).getTokenType() == Token.COMMA) {
             Token token = tokenList.get(pos++);
             funcFParams.appendSonNode(token);
@@ -536,14 +538,301 @@ public class SyntaxAnalyzer {
         return funcFParams;
     }
 
-    public SyntaxClass readFuncFParam() {
+    public SyntaxClass readFuncFParam() throws SyntaxException {
+        if (pos >= tokenList.size()) {
+            return null;
+        }
+        SyntaxClass funcFParam = new SyntaxClass(SyntaxClass.FUNCFPARAM);
+        // 检查BType
+        SyntaxClass bType;
+        bType = readBType();
+        if (bType == null) {
+            throw new SyntaxException();
+        } else {
+            funcFParam.appendSonNode(bType);
+        }
+        // 检查ident
+        if (tokenList.get(pos).getTokenType() == Token.IDENFR) {
+            Token ident = tokenList.get(pos++);
+            funcFParam.appendSonNode(ident);
+        } else {
+            throw new SyntaxException();
+        }
+        // 如果有左中括号
+        if (tokenList.get(pos).getTokenType() == Token.LBRACK) {
+            Token ident = tokenList.get(pos++);
+            funcFParam.appendSonNode(ident);
+            // 需要跟一个右中括号
+            if (tokenList.get(pos).getTokenType() == Token.RBRACK) {
+                ident = tokenList.get(pos++);
+                funcFParam.appendSonNode(ident);
+            } else {
+                throw new SyntaxException();
+            }
+            // 如果还有左中括号
+            while(tokenList.get(pos).getTokenType() == Token.LBRACK) {
+                ident = tokenList.get(pos++);
+                funcFParam.appendSonNode(ident);
+                // 检查一个ConstExp
+                SyntaxClass constExp;
+                constExp = readConstExp();
+                if (constExp == null) {
+                    throw new SyntaxException();
+                }
+                funcFParam.appendSonNode(constExp);
+                // 检查右中括号
+                if (tokenList.get(pos).getTokenType() == Token.RBRACK) {
+                    ident = tokenList.get(pos++);
+                    funcFParam.appendSonNode(ident);
+                } else {
+                    throw new SyntaxException();
+                }
+            }
+        }
+        funcFParam.setFirstAsLineNo();
+        return funcFParam;
     }
 
-    public SyntaxClass readBlock() {
+    public SyntaxClass readBlock() throws SyntaxException {
+        if (pos >= tokenList.size()) {
+            return null;
+        }
+        SyntaxClass block = new SyntaxClass(SyntaxClass.BLOCK);
+        // 检查左花括号
+        Token brace;
+        if (tokenList.get(pos).getTokenType() == Token.LBRACE) {
+            brace = tokenList.get(pos++);
+            block.appendSonNode(brace);
+            SyntaxClass blockItem;
+            // 没见到右花括号就继续
+            while (tokenList.get(pos).getTokenType() != Token.RBRACE) {
+                if (pos >= tokenList.size()) {
+                    throw new SyntaxException();
+                }
+                blockItem = readBlockItem();
+                if (blockItem == null) {
+                    throw new SyntaxException();
+                } else {
+                    block.appendSonNode(blockItem);
+                }
+            }
+            // 右花括号
+            if (tokenList.get(pos).getTokenType() == Token.RBRACE) {
+                brace = tokenList.get(pos++);
+                block.appendSonNode(brace);
+            } else {
+                throw new SyntaxException();
+            }
+        } else {
+            throw new SyntaxException();
+        }
+        block.setFirstAsLineNo();
+        return block;
+    }
+
+    public SyntaxClass readBlockItem() throws SyntaxException {
+        if (pos >= tokenList.size()) {
+            return null;
+        }
+        SyntaxClass blockItem = new SyntaxClass(SyntaxClass.BLOCKITEM);
+        SyntaxClass syntaxClass;
+        // 尝试解析Decl
+        syntaxClass = readDecl();
+        if (syntaxClass != null) {
+            blockItem.appendSonNode(syntaxClass);
+        } else {
+            // 尝试解析Stmt
+            syntaxClass = readStmt();
+            if (syntaxClass != null) {
+                blockItem.appendSonNode(syntaxClass);
+            } else {
+                throw new SyntaxException();
+            }
+        }
+        blockItem.setFirstAsLineNo();
+        return blockItem;
+    }
+
+    public SyntaxClass readStmt() throws SyntaxException {
+        if (pos >= tokenList.size()) {
+            return null;
+        }
+        SyntaxClass stmt = new SyntaxClass(SyntaxClass.STMT);
+        int nextTokenType = tokenList.get(pos).getTokenType();
+        // If
+        if (nextTokenType == Token.IFTK) {
+            Token token = tokenList.get(pos++);
+            stmt.appendSonNode(token);
+            // 左括号
+            if (tokenList.get(pos).getTokenType() == Token.LPARENT) {
+                token = tokenList.get(pos++);
+                stmt.appendSonNode(token);
+            } else {
+                throw new SyntaxException();
+            }
+            // Cond
+            SyntaxClass cond = readCond();
+            if (cond == null) {
+                throw new SyntaxException();
+            } else {
+                stmt.appendSonNode(cond);
+            }
+            // 右括号
+            if (tokenList.get(pos).getTokenType() == Token.RPARENT) {
+                token = tokenList.get(pos++);
+                stmt.appendSonNode(token);
+            } else {
+                throw new SyntaxException();
+            }
+            // Stmt
+            SyntaxClass subStmt = readCond();
+            if (subStmt == null) {
+                throw new SyntaxException();
+            } else {
+                stmt.appendSonNode(subStmt);
+            }
+            // 如果有else
+            if (tokenList.get(pos).getTokenType() == Token.ELSETK) {
+                token = tokenList.get(pos++);
+                stmt.appendSonNode(token);
+                // Stmt
+                subStmt = readCond();
+                if (subStmt == null) {
+                    throw new SyntaxException();
+                } else {
+                    stmt.appendSonNode(subStmt);
+                }
+            }
+        } else if (nextTokenType == Token.WHILETK) {
+            // While
+            Token token = tokenList.get(pos++);
+            stmt.appendSonNode(token);
+            // 左括号
+            if (tokenList.get(pos).getTokenType() == Token.LPARENT) {
+                token = tokenList.get(pos++);
+                stmt.appendSonNode(token);
+            } else {
+                throw new SyntaxException();
+            }
+            // Cond
+            SyntaxClass cond = readCond();
+            if (cond == null) {
+                throw new SyntaxException();
+            } else {
+                stmt.appendSonNode(cond);
+            }
+            // 右括号
+            if (tokenList.get(pos).getTokenType() == Token.RPARENT) {
+                token = tokenList.get(pos++);
+                stmt.appendSonNode(token);
+            } else {
+                throw new SyntaxException();
+            }
+            // Stmt
+            SyntaxClass subStmt = readCond();
+            if (subStmt == null) {
+                throw new SyntaxException();
+            } else {
+                stmt.appendSonNode(subStmt);
+            }
+        } else if (nextTokenType == Token.BREAKTK) {
+            // Break
+            Token token = tokenList.get(pos++);
+            stmt.appendSonNode(token);
+            // 分号
+            if (tokenList.get(pos).getTokenType() == Token.LPARENT) {
+                token = tokenList.get(pos++);
+                stmt.appendSonNode(token);
+            } else {
+                throw new SyntaxException();
+            }
+        } else if (nextTokenType == Token.CONTINUETK) {
+            // Continue
+            Token token = tokenList.get(pos++);
+            stmt.appendSonNode(token);
+            // 分号
+            if (tokenList.get(pos).getTokenType() == Token.LPARENT) {
+                token = tokenList.get(pos++);
+                stmt.appendSonNode(token);
+            } else {
+                throw new SyntaxException();
+            }
+        } else if (nextTokenType == Token.RETURNTK) {
+            // Return
+            Token token = tokenList.get(pos++);
+            stmt.appendSonNode(token);
+            // 分号
+            if (tokenList.get(pos).getTokenType() == Token.LPARENT) {
+                token = tokenList.get(pos++);
+                stmt.appendSonNode(token);
+            } else {
+                // 没有分号，说明有返回值
+                SyntaxClass exp;
+                exp = readExp();
+                if (exp == null) {
+                    throw new SyntaxException();
+                } else {
+                    stmt.appendSonNode(exp);
+                }
+                // 分号
+                if (tokenList.get(pos).getTokenType() == Token.LPARENT) {
+                    token = tokenList.get(pos++);
+                    stmt.appendSonNode(token);
+                } else {
+                    throw new SyntaxException();
+                }
+            }
+        } else if (nextTokenType == Token.PRINTFTK) {
+            // Printf
+            Token token = tokenList.get(pos++);
+            stmt.appendSonNode(token);
+            // 左括号
+            if (tokenList.get(pos).getTokenType() == Token.LPARENT) {
+                token = tokenList.get(pos++);
+                stmt.appendSonNode(token);
+            } else {
+                throw new SyntaxException();
+            }
+            // FormatString
+            if (tokenList.get(pos).getTokenType() == Token.STRCON) {
+                token = tokenList.get(pos++);
+                stmt.appendSonNode(token);
+            } else {
+                throw new SyntaxException();
+            }
+            // 如果有逗号
+            while (tokenList.get(pos).getTokenType() == Token.COMMA) {
+                token = tokenList.get(pos++);
+                stmt.appendSonNode(token);
+                // 需要有Exp
+                SyntaxClass formatStr = readExp();
+                if (formatStr == null) {
+                    throw new SyntaxException();
+                } else {
+                    stmt.appendSonNode(formatStr);
+                }
+            }
+            // 右括号
+            if (tokenList.get(pos).getTokenType() == Token.RPARENT) {
+                token = tokenList.get(pos++);
+                stmt.appendSonNode(token);
+            } else {
+                throw new SyntaxException();
+            }
+            // 分号
+            if (tokenList.get(pos).getTokenType() == Token.SEMICN) {
+                token = tokenList.get(pos++);
+                stmt.appendSonNode(token);
+            } else {
+                throw new SyntaxException();
+            }
+        }
     }
 
     public SyntaxClass readExp() {
     }
+
+    public SyntaxClass readCond() {}
 
     public SyntaxClass readConstExp() {
     }
