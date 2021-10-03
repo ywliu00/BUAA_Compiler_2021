@@ -1229,6 +1229,11 @@ public class SyntaxAnalyzer {
         int nextTokenType = tokenList.get(pos).getTokenType();
         // *, /, %
         while (nextTokenType == Token.MULT || nextTokenType == Token.DIV || nextTokenType == Token.MOD) {
+            // 先封装自己
+            mulExp.setFirstAsLineNo();
+            SyntaxClass tmpMulExp = new SyntaxClass(SyntaxClass.MULEXP);
+            tmpMulExp.appendSonNode(mulExp);
+            mulExp = tmpMulExp;
             Token token = tokenList.get(pos++);
             mulExp.appendSonNode(token);
             // UnaryExp
@@ -1259,6 +1264,11 @@ public class SyntaxAnalyzer {
         int nextTokenType = tokenList.get(pos).getTokenType();
         // +,-
         while (nextTokenType == Token.PLUS || nextTokenType == Token.MINU) {
+            // 先封装自己
+            addExp.setFirstAsLineNo();
+            SyntaxClass tmpAddExp = new SyntaxClass(SyntaxClass.ADDEXP);
+            tmpAddExp.appendSonNode(addExp);
+            addExp = tmpAddExp;
             Token token = tokenList.get(pos++);
             addExp.appendSonNode(token);
             // MulExp
@@ -1290,6 +1300,11 @@ public class SyntaxAnalyzer {
         // <,>,<=,>=
         while (nextTokenType == Token.LSS || nextTokenType == Token.GRE ||
                 nextTokenType == Token.LEQ || nextTokenType == Token.GEQ) {
+            // 先封装自己
+            relExp.setFirstAsLineNo();
+            SyntaxClass tmpRelExp = new SyntaxClass(SyntaxClass.RELEXP);
+            tmpRelExp.appendSonNode(relExp);
+            relExp = tmpRelExp;
             Token token = tokenList.get(pos++);
             relExp.appendSonNode(token);
             // AddExp
@@ -1320,6 +1335,11 @@ public class SyntaxAnalyzer {
         int nextTokenType = tokenList.get(pos).getTokenType();
         // ==,!=
         while (nextTokenType == Token.EQL || nextTokenType == Token.NEQ) {
+            // 先封装自己
+            eqExp.setFirstAsLineNo();
+            SyntaxClass tmpEqExp = new SyntaxClass(SyntaxClass.EQEXP);
+            tmpEqExp.appendSonNode(eqExp);
+            eqExp = tmpEqExp;
             Token token = tokenList.get(pos++);
             eqExp.appendSonNode(token);
             // RelExp
@@ -1350,6 +1370,11 @@ public class SyntaxAnalyzer {
         int nextTokenType = tokenList.get(pos).getTokenType();
         // &&
         while (nextTokenType == Token.AND) {
+            // 先封装自己
+            lAndExp.setFirstAsLineNo();
+            SyntaxClass tmpLAndExp = new SyntaxClass(SyntaxClass.LANDEXP);
+            tmpLAndExp.appendSonNode(lAndExp);
+            lAndExp = tmpLAndExp;
             Token token = tokenList.get(pos++);
             lAndExp.appendSonNode(token);
             // EqExp
@@ -1380,6 +1405,20 @@ public class SyntaxAnalyzer {
         int nextTokenType = tokenList.get(pos).getTokenType();
         // ||
         while (nextTokenType == Token.OR) {
+            /*Token token = tokenList.get(pos++);
+            lOrExp.appendSonNode(token);
+            // LAndExp
+            lAndExp = readLAndExp();
+            if (lAndExp == null) {
+                throw new SyntaxException();
+            }
+            lOrExp.appendSonNode(lAndExp);
+            nextTokenType = tokenList.get(pos).getTokenType();*/
+            // 先封装自己
+            lOrExp.setFirstAsLineNo();
+            SyntaxClass tmpLOrExp = new SyntaxClass(SyntaxClass.LOREXP);
+            tmpLOrExp.appendSonNode(lOrExp);
+            lOrExp = tmpLOrExp;
             Token token = tokenList.get(pos++);
             lOrExp.appendSonNode(token);
             // LAndExp
