@@ -1057,6 +1057,7 @@ public class SyntaxAnalyzer {
             if (exp == null) {
                 throw new SyntaxException();
             }
+            primaryExp.appendSonNode(exp);
             // )
             if (tokenList.get(pos).getTokenType() == Token.RPARENT) {
                 parent = tokenList.get(pos++);

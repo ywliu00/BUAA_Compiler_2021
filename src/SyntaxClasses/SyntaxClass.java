@@ -64,7 +64,6 @@ public class SyntaxClass {
         StringBuilder outStringBuilder = new StringBuilder("");
         for (SyntaxClass syntax : this.sonNodeList) {
             outStringBuilder.append(syntax.toString());
-            outStringBuilder.append("");
         }
         if (this.syntaxType != SyntaxClass.BLOCKITEM &&
                 this.syntaxType != SyntaxClass.DECL &&
