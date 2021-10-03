@@ -1405,15 +1405,6 @@ public class SyntaxAnalyzer {
         int nextTokenType = tokenList.get(pos).getTokenType();
         // ||
         while (nextTokenType == Token.OR) {
-            /*Token token = tokenList.get(pos++);
-            lOrExp.appendSonNode(token);
-            // LAndExp
-            lAndExp = readLAndExp();
-            if (lAndExp == null) {
-                throw new SyntaxException();
-            }
-            lOrExp.appendSonNode(lAndExp);
-            nextTokenType = tokenList.get(pos).getTokenType();*/
             // 先封装自己
             lOrExp.setFirstAsLineNo();
             SyntaxClass tmpLOrExp = new SyntaxClass(SyntaxClass.LOREXP);
