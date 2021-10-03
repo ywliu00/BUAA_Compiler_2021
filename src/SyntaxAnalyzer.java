@@ -10,11 +10,18 @@ public class SyntaxAnalyzer {
     private SyntaxClass globalCompUnit;
     private int pos;
 
+    public SyntaxAnalyzer() {
+        this.globalCompUnit = null;
+        this.pos = 0;
+    }
+
     public void setTokenList(LinkedList<Token> tokenList) {
         this.tokenList = new ArrayList<>();
         this.tokenList.addAll(tokenList);
-        this.globalCompUnit = null;
-        this.pos = 0;
+    }
+
+    public int getPos() {
+        return pos;
     }
 
     public SyntaxClass getGlobalCompUnit() {
@@ -26,8 +33,7 @@ public class SyntaxAnalyzer {
     }
 
     public SyntaxClass readCompUnit() throws SyntaxException {
-        SyntaxClass compUnit = new SyntaxClass();
-        compUnit.setSyntaxType(SyntaxClass.COMPUNIT);
+        SyntaxClass compUnit = new SyntaxClass(SyntaxClass.COMPUNIT);
         if (pos >= tokenList.size()) {
             return null;
         }
@@ -114,7 +120,8 @@ public class SyntaxAnalyzer {
         }
         SyntaxClass constDecl = new SyntaxClass(SyntaxClass.CONSTDECL),
                 bType, constDef;
-        constDecl.appendSonNode(tokenList.get(this.pos++));
+        Token constToken = tokenList.get(this.pos++);
+        constDecl.appendSonNode(constToken);
         // 检查BType
         startPos = pos;
         bType = readBType();
@@ -188,10 +195,10 @@ public class SyntaxAnalyzer {
             constDef.appendSonNode(ident);
         }
         // 检查是否有左中括号
-        Token token = tokenList.get(pos);
-        while (token.getTokenType() == Token.LBRACK) {
+        Token token;
+        while (tokenList.get(pos).getTokenType() == Token.LBRACK) {
             // 若有，检查ConstExp和右中括号
-            ++pos;
+            token = tokenList.get(pos++);
             SyntaxClass constExp;
             startPos = pos;
             constExp = readConstExp();
@@ -206,10 +213,10 @@ public class SyntaxAnalyzer {
             }
         }
         // 检查是否是 =
-        if (token.getTokenType() != Token.EQL) {
+        if (tokenList.get(pos).getTokenType() != Token.ASSIGN) {
             throw new SyntaxException();
         } else {
-            ++pos;
+            token = tokenList.get(pos++);
             constDef.appendSonNode(token);
             SyntaxClass constInitVal;
             // 检查constInitVal
@@ -234,6 +241,7 @@ public class SyntaxAnalyzer {
             Token token = tokenList.get(pos++);
             constInitVal.appendSonNode(token);
             // 先看看是不是右花括号，如果不是，说明中间有内容
+            // 这样的话可以避免回溯
             if (tokenList.get(pos).getTokenType() != Token.RBRACE) {
                 // 检查是否是ConstInitVal
                 SyntaxClass subConstInitVal;
@@ -349,9 +357,10 @@ public class SyntaxAnalyzer {
                 varDef.appendSonNode(constExp);
                 varDef.appendSonNode(rbrack);
             }
+            token = tokenList.get(pos);
         }
         // 如果是 =
-        if (token.getTokenType() == Token.EQL) {
+        if (token.getTokenType() == Token.ASSIGN) {
             ++pos;
             varDef.appendSonNode(token);
             SyntaxClass initVal;
@@ -377,7 +386,7 @@ public class SyntaxAnalyzer {
         if (tokenList.get(pos).getTokenType() == Token.LBRACE) {
             token = tokenList.get(pos++);
             initVal.appendSonNode(token);
-            // 如果不是右花括号，说明中间有东西
+            // 如果不是右花括号，说明中间有东西，避免回溯
             if (tokenList.get(pos).getTokenType() != Token.RBRACE) {
                 // 检查必须存在的InitVal
                 SyntaxClass subInitVal;
@@ -635,6 +644,7 @@ public class SyntaxAnalyzer {
         }
         SyntaxClass block = new SyntaxClass(SyntaxClass.BLOCK);
         // 检查左花括号
+        int startPos = pos;
         Token brace;
         if (tokenList.get(pos).getTokenType() == Token.LBRACE) {
             brace = tokenList.get(pos++);
@@ -646,9 +656,12 @@ public class SyntaxAnalyzer {
                     throw new SyntaxException();
                 }
                 // 可能存在的BlockItem，若发生错误，则说明没有，break
+                // 准备回溯（疑似无必要）
+                startPos = pos;
                 try {
                     blockItem = readBlockItem();
                 } catch (SyntaxException e) {
+                    pos = startPos;
                     break;
                 }
                 if (blockItem == null) {
@@ -677,12 +690,19 @@ public class SyntaxAnalyzer {
         }
         SyntaxClass blockItem = new SyntaxClass(SyntaxClass.BLOCKITEM);
         SyntaxClass syntaxClass;
-        // 尝试解析Decl
-        syntaxClass = readDecl();
-        if (syntaxClass != null) {
+
+        int startPos = pos, nextTokenType = tokenList.get(pos).getTokenType();
+        if (nextTokenType == Token.CONSTTK || nextTokenType == Token.INTTK) {
+            // 尝试解析Decl
+            syntaxClass = readDecl();
+            if (syntaxClass == null) {
+                throw new SyntaxException();
+            }
             blockItem.appendSonNode(syntaxClass);
         } else {
             // 尝试解析Stmt
+            // 先回溯
+            // pos = startPos;
             syntaxClass = readStmt();
             if (syntaxClass != null) {
                 blockItem.appendSonNode(syntaxClass);
@@ -726,7 +746,7 @@ public class SyntaxAnalyzer {
                 throw new SyntaxException();
             }
             // Stmt
-            SyntaxClass subStmt = readCond();
+            SyntaxClass subStmt = readStmt();
             if (subStmt == null) {
                 throw new SyntaxException();
             } else {
@@ -737,7 +757,7 @@ public class SyntaxAnalyzer {
                 token = tokenList.get(pos++);
                 stmt.appendSonNode(token);
                 // Stmt
-                subStmt = readCond();
+                subStmt = readStmt();
                 if (subStmt == null) {
                     throw new SyntaxException();
                 } else {
@@ -770,7 +790,7 @@ public class SyntaxAnalyzer {
                 throw new SyntaxException();
             }
             // Stmt
-            SyntaxClass subStmt = readCond();
+            SyntaxClass subStmt = readStmt();
             if (subStmt == null) {
                 throw new SyntaxException();
             } else {
@@ -781,7 +801,7 @@ public class SyntaxAnalyzer {
             Token token = tokenList.get(pos++);
             stmt.appendSonNode(token);
             // 分号
-            if (tokenList.get(pos).getTokenType() == Token.LPARENT) {
+            if (tokenList.get(pos).getTokenType() == Token.SEMICN) {
                 token = tokenList.get(pos++);
                 stmt.appendSonNode(token);
             } else {
@@ -792,7 +812,7 @@ public class SyntaxAnalyzer {
             Token token = tokenList.get(pos++);
             stmt.appendSonNode(token);
             // 分号
-            if (tokenList.get(pos).getTokenType() == Token.LPARENT) {
+            if (tokenList.get(pos).getTokenType() == Token.SEMICN) {
                 token = tokenList.get(pos++);
                 stmt.appendSonNode(token);
             } else {
@@ -803,7 +823,7 @@ public class SyntaxAnalyzer {
             Token token = tokenList.get(pos++);
             stmt.appendSonNode(token);
             // 分号
-            if (tokenList.get(pos).getTokenType() == Token.LPARENT) {
+            if (tokenList.get(pos).getTokenType() == Token.SEMICN) {
                 token = tokenList.get(pos++);
                 stmt.appendSonNode(token);
             } else {
@@ -816,7 +836,7 @@ public class SyntaxAnalyzer {
                     stmt.appendSonNode(exp);
                 }
                 // 分号
-                if (tokenList.get(pos).getTokenType() == Token.LPARENT) {
+                if (tokenList.get(pos).getTokenType() == Token.SEMICN) {
                     token = tokenList.get(pos++);
                     stmt.appendSonNode(token);
                 } else {
@@ -897,7 +917,7 @@ public class SyntaxAnalyzer {
                 }
                 if (isLVal) {
                     // 检查是否跟着等号
-                    if (tokenList.get(pos).getTokenType() == Token.EQL) {
+                    if (tokenList.get(pos).getTokenType() == Token.ASSIGN) {
                         Token token = tokenList.get(pos++);
                         // 确实是等号，则LVal可以确认加入
                         stmt.appendSonNode(lVal);
@@ -944,13 +964,13 @@ public class SyntaxAnalyzer {
                     }
                     stmt.appendSonNode(exp);
                 }
-            }
-            // 分号
-            if (tokenList.get(pos).getTokenType() == Token.SEMICN) {
-                semicn = tokenList.get(pos++);
-                stmt.appendSonNode(semicn);
-            } else {
-                throw new SyntaxException();
+                // 分号
+                if (tokenList.get(pos).getTokenType() == Token.SEMICN) {
+                    semicn = tokenList.get(pos++);
+                    stmt.appendSonNode(semicn);
+                } else {
+                    throw new SyntaxException();
+                }
             }
         }
         stmt.setFirstAsLineNo();
@@ -1086,8 +1106,9 @@ public class SyntaxAnalyzer {
             return null;
         }
         SyntaxClass unaryExp = new SyntaxClass(SyntaxClass.UNARYEXP);
+        int nextTokenType = tokenList.get(pos).getTokenType();
         // Ident
-        if (tokenList.get(pos).getTokenType() == Token.IDENFR) {
+        if (nextTokenType == Token.IDENFR && tokenList.get(pos + 1).getTokenType() == Token.LPARENT) {
             Token ident = tokenList.get(pos++);
             unaryExp.appendSonNode(ident);
             // 左括号
@@ -1117,6 +1138,24 @@ public class SyntaxAnalyzer {
             } else {
                 throw new SyntaxException();
             }
+        } else if (nextTokenType == Token.PLUS ||
+                nextTokenType == Token.MINU ||
+                nextTokenType == Token.NOT) {
+            // UnaryOp UnaryExp情况
+            // 先检查一元运算符
+            SyntaxClass unaryOp;
+            unaryOp = readUnaryOp();
+            if (unaryOp == null) {
+                throw new SyntaxException();
+            }
+            unaryExp.appendSonNode(unaryOp);
+            // 检查一元表达式
+            SyntaxClass subUnaryExp;
+            subUnaryExp = readUnaryExp();
+            if (subUnaryExp == null) {
+                throw new SyntaxException();
+            }
+            unaryExp.appendSonNode(subUnaryExp);
         } else {
             // PrimaryExp
             SyntaxClass primaryExp;
@@ -1365,6 +1404,7 @@ public class SyntaxAnalyzer {
         if (addExp == null) {
             throw new SyntaxException();
         }
+        constExp.appendSonNode(addExp);
         constExp.setFirstAsLineNo();
         return constExp;
     }

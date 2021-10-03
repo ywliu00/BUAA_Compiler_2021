@@ -1,4 +1,6 @@
 import Exceptions.LexicalException;
+import Exceptions.SyntaxException;
+import SyntaxClasses.SyntaxClass;
 import SyntaxClasses.Token;
 
 import java.io.FileNotFoundException;
@@ -18,6 +20,7 @@ public class Compiler {
 
         ReadFile readFile = new ReadFile("testfile.txt");
         LexicalAnalyzer lexicalAnalyzer = new LexicalAnalyzer();
+        SyntaxAnalyzer syntaxAnalyzer = new SyntaxAnalyzer();
         StringBuilder myProgram = readFile.readFile();
         lexicalAnalyzer.setProgramStr(myProgram);
         try {
@@ -26,9 +29,17 @@ public class Compiler {
             e.printStackTrace();
         }
         LinkedList<Token> tokenList = lexicalAnalyzer.getTokenList();
-        for (Token token : tokenList) {
+        /*for (Token token : tokenList) {
             System.out.println(token);
+        }*/
+        syntaxAnalyzer.setTokenList(tokenList);
+        try {
+            syntaxAnalyzer.syntaxAnalyze();
+        } catch (SyntaxException e) {
+            System.out.println(tokenList.get(syntaxAnalyzer.getPos()));
+            e.printStackTrace();
         }
-
+        SyntaxClass compUnit = syntaxAnalyzer.getGlobalCompUnit();
+        System.out.println(compUnit);
     }
 }

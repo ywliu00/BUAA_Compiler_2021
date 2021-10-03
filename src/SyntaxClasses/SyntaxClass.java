@@ -15,7 +15,7 @@ public class SyntaxClass {
             "FuncFParams", "FuncFParam", "Block", "BlockItem", "Stmt",
             "Exp", "Cond", "LVal", "PrimaryExp", "Number", "UnaryExp",
             "UnaryOp", "FuncParams", "MulExp", "AddExp", "RelExp", "EqExp",
-            "LAndExp", "LOrExp", "ConstExp"};
+            "LAndExp", "LOrExp", "ConstExp", "MainFuncDef"};
     private int lineNo;
     private int syntaxType;
     private LinkedList<SyntaxClass> sonNodeList;
@@ -26,6 +26,7 @@ public class SyntaxClass {
 
     public SyntaxClass(int syntaxType) {
         this.syntaxType = syntaxType;
+        this.sonNodeList = new LinkedList<>();
     }
 
     public SyntaxClass(int lineNum, int typeNum) {
@@ -56,5 +57,22 @@ public class SyntaxClass {
 
     public void setFirstAsLineNo() {
         this.lineNo = this.sonNodeList.get(0).getLineNo();
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder outStringBuilder = new StringBuilder("");
+        for (SyntaxClass syntax : this.sonNodeList) {
+            outStringBuilder.append(syntax.toString());
+            outStringBuilder.append("");
+        }
+        if (this.syntaxType != SyntaxClass.BLOCKITEM &&
+                this.syntaxType != SyntaxClass.DECL &&
+                this.syntaxType != SyntaxClass.BTYPE) {
+            outStringBuilder.append("<");
+            outStringBuilder.append(SyntaxClass.syntaxNames[this.syntaxType]);
+            outStringBuilder.append(">\n");
+        }
+        return outStringBuilder.toString();
     }
 }

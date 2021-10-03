@@ -29,6 +29,6 @@ public class Token extends SyntaxClass{
 
     @Override
     public String toString() {
-        return typeNames[this.tokenType] + " " + this.tokenContext;
+        return typeNames[this.tokenType] + " " + this.tokenContext + "\n";
     }
 }
