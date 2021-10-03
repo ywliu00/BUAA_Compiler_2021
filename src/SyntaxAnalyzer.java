@@ -1190,7 +1190,7 @@ public class SyntaxAnalyzer {
         if (pos >= tokenList.size()) {
             return null;
         }
-        SyntaxClass funcRParams = new SyntaxClass(SyntaxClass.FUNCFPARAMS);
+        SyntaxClass funcRParams = new SyntaxClass(SyntaxClass.FUNCRPARAMS);
         // 必须要有的Exp
         SyntaxClass exp;
         exp = readExp();
