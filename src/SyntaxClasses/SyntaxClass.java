@@ -20,9 +20,9 @@ public class SyntaxClass {
     private int syntaxType;
     private LinkedList<SyntaxClass> sonNodeList;
 
-    public SyntaxClass() {
-
-    }
+//    public SyntaxClass() {
+//
+//    }
 
     public SyntaxClass(int syntaxType) {
         this.syntaxType = syntaxType;
