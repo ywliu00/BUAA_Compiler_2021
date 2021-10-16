@@ -12,11 +12,21 @@ public class Token extends SyntaxClass{
             "ASSIGN", "SEMICN", "COMMA", "LPARENT", "RPARENT", "LBRACK", "RBRACK", "LBRACE", "RBRACE"};
     private int tokenType;
     private String tokenContext;
+    private int formatCharNum;
 
     public Token(int type, int lineNum, String context) {
         super(lineNum, SyntaxClass.TOKEN);
         this.tokenType = type;
         this.tokenContext = context;
+        this.formatCharNum = -1;
+    }
+
+    public void setFormatCharNum(int formatCharNum) {
+        this.formatCharNum = formatCharNum;
+    }
+
+    public int getFormatCharNum() {
+        return formatCharNum;
     }
 
     public int getTokenType() {

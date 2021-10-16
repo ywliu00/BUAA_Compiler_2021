@@ -14,6 +14,10 @@ public class FuncSymbol extends Symbol{
         this.fParams = new ArrayList<>();
     }
 
+    public boolean funcHasReturn() {
+        return hasReturn;
+    }
+
     public void addFormalParamType(int typeNo) {
         SymbolType type = new SymbolType(typeNo, 1);
         fParams.add(type);

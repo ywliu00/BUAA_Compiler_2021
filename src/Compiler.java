@@ -7,22 +7,25 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.LinkedList;
 
 public class Compiler {
     public static void main(String[] argv) {
         PrintStream ps = null;
         try {
-            ps = new PrintStream(new FileOutputStream("output.txt"));
+            ps = new PrintStream(new FileOutputStream("error.txt"));
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
         System.setOut(ps);
 
-        ReadFile readFile = new ReadFile("testfile.txt");
+        ReadFile readFile = new ReadFile("testfile_0.txt");
         LexicalAnalyzer lexicalAnalyzer = new LexicalAnalyzer();
         SyntaxAnalyzer syntaxAnalyzer = new SyntaxAnalyzer();
         ArrayList<Error> errorList = new ArrayList<>();
+        lexicalAnalyzer.setErrorList(errorList);
         syntaxAnalyzer.setErrorList(errorList);
         StringBuilder myProgram = readFile.readFile();
         lexicalAnalyzer.setProgramStr(myProgram);
@@ -43,6 +46,10 @@ public class Compiler {
             e.printStackTrace();
         }
         SyntaxClass compUnit = syntaxAnalyzer.getGlobalCompUnit();
-        System.out.println(compUnit);
+        Collections.sort(errorList);
+        for (Error err : errorList) {
+            System.out.println(err);
+        }
+        // System.out.println(compUnit);
     }
 }

@@ -21,6 +21,56 @@ public class SymbolAnalyzer {
 //
 //    }
 
+    public static FuncSymbol getCallFuncSymbol(SyntaxClass unaryExp) {
+        SymbolTable curEnv = unaryExp.getCurEnv();
+        LinkedList<SyntaxClass> funcDefSonNodes = unaryExp.getSonNodeList();
+        Token funcIdent = (Token) funcDefSonNodes.get(0);
+        FuncSymbol funcSymbol = new FuncSymbol(funcIdent, true);
+
+        SyntaxClass funcParams = funcDefSonNodes.get(2);
+        if (funcParams.getSyntaxType() == SyntaxClass.FUNCRPARAMS) { // 若有实参
+            LinkedList<SyntaxClass> funcRParamList = funcParams.getSonNodeList();
+            for (int i = 0; i < funcRParamList.size(); i += 2) {
+                SyntaxClass exp = funcRParamList.get(i);
+//                System.out.println(exp);
+//                System.out.println(exp.getLineNo());
+                SyntaxClass addExp = exp.getSonNodeList().get(0);
+                if (addExp.getSonNodeList().size() > 1) {
+                    funcSymbol.addFormalParamType(0);
+                    continue;
+                }
+                SyntaxClass mulExp = addExp.getSonNodeList().get(0);
+                if (mulExp.getSonNodeList().size() > 1) {
+                    funcSymbol.addFormalParamType(0);
+                    continue;
+                }
+                SyntaxClass subUnaryExp = mulExp.getSonNodeList().get(0);
+                SyntaxClass primaryExp = subUnaryExp.getSonNodeList().get(0);
+                if (primaryExp.getSyntaxType() != SyntaxClass.PRIMARYEXP) { // 函数或式子
+                    funcSymbol.addFormalParamType(0);
+                    continue;
+                }
+                SyntaxClass lVal = primaryExp.getSonNodeList().get(0);
+                if (lVal.getSyntaxType() != SyntaxClass.LVAL) { // (Exp)或数字
+                    funcSymbol.addFormalParamType(0);
+                    continue;
+                }
+                Token ident = (Token) lVal.getSonNodeList().get(0);
+                Symbol tokenSymbol = curEnv.globalLookup(ident.getTokenContext());
+                int dimType = ((VarSymbol) tokenSymbol).getDimType();
+                for (int j = 1; j < lVal.getSonNodeList().size(); ++j) {
+                    if (lVal.getSonNodeList().get(j).getSyntaxType() == SyntaxClass.TOKEN) {
+                        if (((Token) lVal.getSonNodeList().get(j)).getTokenType() == Token.LBRACK) { // 有一个方括号就减1
+                            --dimType;
+                        }
+                    }
+                }
+                funcSymbol.addFormalParamType(dimType);
+            }
+        }
+        return funcSymbol;
+    }
+
     public static FuncSymbol getFuncSymbol(SyntaxClass funcDef) {
         LinkedList<SyntaxClass> funcDefSonNodes = funcDef.getSonNodeList();
         SyntaxClass funcType = funcDefSonNodes.get(0);

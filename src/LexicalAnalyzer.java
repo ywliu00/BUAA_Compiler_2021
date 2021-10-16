@@ -11,7 +11,11 @@ public class LexicalAnalyzer {
 
     public LexicalAnalyzer() {
         this.tokenList = new LinkedList<>();
-        this.errorList = new ArrayList<>();
+        this.errorList = null;
+    }
+
+    public void setErrorList(ArrayList<Error> errorList) {
+        this.errorList = errorList;
     }
 
     public void setProgramStr(StringBuilder programStr) {
@@ -114,10 +118,11 @@ public class LexicalAnalyzer {
                 }
             } else if (readChr == '"') {
                 int start = pos - 1;
-                int status = 0;
+                int status = 0, formatCharNum = 0;
                 while (pos < progLen) {
                     char curChar = this.programStr.charAt(pos);
                     if (curChar == '"') {
+                        ++pos;
                         break;
                     } else {
                         switch (status) {
@@ -142,6 +147,7 @@ public class LexicalAnalyzer {
                             case 2: // 收到一个%。需要一个d恢复正常
                                 if (curChar == 'd') {
                                     status = 0;
+                                    ++formatCharNum;
                                 } else {
                                     status = 3;
                                 }
@@ -159,6 +165,7 @@ public class LexicalAnalyzer {
                 if (this.programStr.charAt(pos - 1) == '"') {
                     String context = this.programStr.substring(start, pos);
                     curToken = new Token(Token.STRCON, lineNum, context);
+                    curToken.setFormatCharNum(formatCharNum);
                 } else {
                     throw new LexicalException(lineNum);
                 }
@@ -172,6 +179,7 @@ public class LexicalAnalyzer {
                 }
                 curToken = new Token(Token.INTCON, lineNum, this.programStr.substring(start, pos));
                 curToken.setConstValue(Integer.parseInt(curToken.getTokenContext())); // 词法分析时求IntConst的值
+                curToken.setCalculated(true); // 标记为已求值
             } else if (isIdentNonDigit(readChr)) {
                 int start = pos - 1;
                 while (pos < progLen) {

@@ -8,25 +8,56 @@ public class SymbolTable {
     private SymbolTable parent;
     private HashMap<String, Symbol> symbolMap;
     private boolean cycleBlock;
+    private FuncSymbol curFunc;
 
     public SymbolTable() {
         parent = null;
         symbolMap = new HashMap<>();
         cycleBlock = false;
+        curFunc = null;
     }
 
     public SymbolTable(SymbolTable parent) {
         this.parent = parent;
         symbolMap = new HashMap<>();
         cycleBlock = false;
+        curFunc = null;
+    }
+
+    public void setCurFunc(FuncSymbol curFunc) {
+        this.curFunc = curFunc;
+    }
+
+    public FuncSymbol getCurFunc() {
+        return curFunc;
+    }
+
+    public FuncSymbol checkCurFunc() {
+        SymbolTable curEnv = this;
+        while (curEnv != null && curEnv.getCurFunc() == null) {
+            curEnv = curEnv.getParent();
+        }
+        if (curEnv != null) {
+            return curEnv.getCurFunc();
+        } else {
+            return null;
+        }
     }
 
     public void setCycleBlock(boolean cycleBlock) {
         this.cycleBlock = cycleBlock;
     }
 
-    public boolean isCycleBlock() {
-        return this.cycleBlock;
+    public boolean isInCycleBlock() {
+        SymbolTable curEnv = this;
+        while (curEnv != null && !curEnv.cycleBlock && curEnv.getCurFunc() == null) {
+            curEnv = curEnv.getParent();
+        }
+        if (curEnv != null) {
+            return curEnv.cycleBlock;
+        } else {
+            return false;
+        }
     }
 
     public SymbolTable getParent() {
