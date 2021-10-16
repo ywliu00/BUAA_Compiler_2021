@@ -131,6 +131,7 @@ public class LexicalAnalyzer {
                     }
                 }
                 curToken = new Token(Token.INTCON, lineNum, this.programStr.substring(start, pos));
+                curToken.setConstValue(Integer.parseInt(curToken.getTokenContext())); // 词法分析时求IntConst的值
             } else if (isIdentNonDigit(readChr)) {
                 int start = pos - 1;
                 while (pos < progLen) {

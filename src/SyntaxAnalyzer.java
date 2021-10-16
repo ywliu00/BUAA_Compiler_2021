@@ -1,4 +1,6 @@
 import Exceptions.SyntaxException;
+import Symbols.SymbolTable;
+import Symbols.VarSymbol;
 import SyntaxClasses.SyntaxClass;
 import SyntaxClasses.Token;
 
@@ -34,6 +36,8 @@ public class SyntaxAnalyzer {
 
     public SyntaxClass readCompUnit() throws SyntaxException {
         SyntaxClass compUnit = new SyntaxClass(SyntaxClass.COMPUNIT);
+        SymbolTable globalSymbolTable = new SymbolTable();
+        compUnit.setCurEnv(globalSymbolTable); // 创建并设置全局符号表
         if (pos >= tokenList.size()) {
             return null;
         }
@@ -43,7 +47,7 @@ public class SyntaxAnalyzer {
         while (true) {
             try {
                 startPos = pos;
-                decl = readDecl();
+                decl = readDecl(globalSymbolTable);
             } catch (SyntaxException e) {
                 pos = startPos;
                 break;
@@ -56,7 +60,7 @@ public class SyntaxAnalyzer {
         while (true) {
             try {
                 startPos = pos;
-                funcDef = readFuncDef();
+                funcDef = readFuncDef(globalSymbolTable);
             } catch (SyntaxException e) {
                 pos = startPos;
                 break;
@@ -67,7 +71,7 @@ public class SyntaxAnalyzer {
         // 分析MainFuncDef成分
         SyntaxClass mainFuncDef;
         startPos = pos;
-        mainFuncDef = readMainFuncDef();
+        mainFuncDef = readMainFuncDef(globalSymbolTable);
         if (mainFuncDef == null) {
             pos = startPos;
             throw new SyntaxException();
@@ -77,7 +81,7 @@ public class SyntaxAnalyzer {
         return compUnit;
     }
 
-    public SyntaxClass readDecl() throws SyntaxException {
+    public SyntaxClass readDecl(SymbolTable curEnv) throws SyntaxException {
         if (pos >= tokenList.size()) {
             return null;
         }
@@ -87,7 +91,7 @@ public class SyntaxAnalyzer {
         if (tokenList.get(pos).getTokenType() == Token.CONSTTK) {
             SyntaxClass constDecl;
             startPos = pos;
-            constDecl = readConstDecl();
+            constDecl = readConstDecl(curEnv);
             if (constDecl == null) {
                 pos = startPos;
                 throw new SyntaxException();
@@ -97,7 +101,7 @@ public class SyntaxAnalyzer {
         } else { // 否则是VarDecl
             SyntaxClass varDecl;
             startPos = pos;
-            varDecl = readVarDecl();
+            varDecl = readVarDecl(curEnv);
             if (varDecl == null) {
                 pos = startPos;
                 throw new SyntaxException();
@@ -109,7 +113,7 @@ public class SyntaxAnalyzer {
         return decl;
     }
 
-    public SyntaxClass readConstDecl() throws SyntaxException {
+    public SyntaxClass readConstDecl(SymbolTable curEnv) throws SyntaxException {
         if (pos >= tokenList.size()) {
             return null;
         }
@@ -133,7 +137,7 @@ public class SyntaxAnalyzer {
         }
         // 检查必需的constDef
         startPos = pos;
-        constDef = readConstDef();
+        constDef = readConstDef(curEnv);
         if (constDef == null) {
             pos = startPos;
             throw new SyntaxException();
@@ -145,7 +149,7 @@ public class SyntaxAnalyzer {
         while (tokenList.get(pos).getTokenType() == Token.COMMA) {
             Token comma = tokenList.get(pos++);
             startPos = pos;
-            constDef = readConstDef();
+            constDef = readConstDef(curEnv);
             if (constDef == null) {
                 pos = startPos;
                 throw new SyntaxException();
@@ -180,7 +184,7 @@ public class SyntaxAnalyzer {
         return bType;
     }
 
-    public SyntaxClass readConstDef() throws SyntaxException {
+    public SyntaxClass readConstDef(SymbolTable curEnv) throws SyntaxException {
         if (pos >= tokenList.size()) {
             return null;
         }
@@ -196,13 +200,16 @@ public class SyntaxAnalyzer {
         }
         // 检查是否有左中括号
         Token token;
+        int brackNum = 0;
         while (tokenList.get(pos).getTokenType() == Token.LBRACK) {
             // 若有，检查ConstExp和右中括号
+            ++brackNum;
             token = tokenList.get(pos++);
             SyntaxClass constExp;
             startPos = pos;
-            constExp = readConstExp();
+            constExp = readConstExp(curEnv);
             Token rbrack = tokenList.get(pos);
+            // TODO: Missing ']'
             if (rbrack.getTokenType() != Token.RBRACK) {
                 throw new SyntaxException();
             } else {
@@ -220,18 +227,22 @@ public class SyntaxAnalyzer {
             constDef.appendSonNode(token);
             SyntaxClass constInitVal;
             // 检查constInitVal
-            constInitVal = readConstInitVal();
+            constInitVal = readConstInitVal(curEnv);
             if (constInitVal == null) {
                 throw new SyntaxException();
             } else {
                 constDef.appendSonNode(constInitVal);
             }
         }
+        // Add current constdef to symbol table
+        VarSymbol curSymbol = new VarSymbol(ident, 0, brackNum);
+        // TODO: Duplicated Symbol Exception
+        curEnv.addSymbol(curSymbol);
         constDef.setFirstAsLineNo();
         return constDef;
     }
 
-    public SyntaxClass readConstInitVal() throws SyntaxException {
+    public SyntaxClass readConstInitVal(SymbolTable curEnv) throws SyntaxException {
         if (pos >= tokenList.size()) {
             return null;
         }
@@ -245,7 +256,7 @@ public class SyntaxAnalyzer {
             if (tokenList.get(pos).getTokenType() != Token.RBRACE) {
                 // 检查是否是ConstInitVal
                 SyntaxClass subConstInitVal;
-                subConstInitVal = readConstInitVal();
+                subConstInitVal = readConstInitVal(curEnv);
                 if (subConstInitVal == null) {
                     throw new SyntaxException();
                 } else {
@@ -256,7 +267,7 @@ public class SyntaxAnalyzer {
                     Token comma = tokenList.get(pos++);
                     constInitVal.appendSonNode(comma);
                     // 有逗号，后面需要再接ConstInitVal
-                    subConstInitVal = readConstInitVal();
+                    subConstInitVal = readConstInitVal(curEnv);
                     if (subConstInitVal == null) {
                         throw new SyntaxException();
                     } else {
@@ -273,7 +284,7 @@ public class SyntaxAnalyzer {
             }
         } else { // 不是左花括号，要匹配一个ConstExp
             SyntaxClass constExp;
-            constExp = readConstExp();
+            constExp = readConstExp(curEnv);
             if (constExp == null) {
                 throw new SyntaxException();
             } else {
@@ -284,7 +295,7 @@ public class SyntaxAnalyzer {
         return constInitVal;
     }
 
-    public SyntaxClass readVarDecl() throws SyntaxException {
+    public SyntaxClass readVarDecl(SymbolTable curEnv) throws SyntaxException {
         if (pos >= tokenList.size()) {
             return null;
         }
@@ -298,7 +309,7 @@ public class SyntaxAnalyzer {
             varDecl.appendSonNode(bType);
         }
         // 检查VarDef
-        varDef = readVarDef();
+        varDef = readVarDef(curEnv);
         if (varDef == null) {
             throw new SyntaxException();
         } else {
@@ -310,7 +321,7 @@ public class SyntaxAnalyzer {
             token = tokenList.get(pos++);
             varDecl.appendSonNode(token);
             // 逗号后面需要是VarDef
-            varDef = readVarDef();
+            varDef = readVarDef(curEnv);
             if (varDef == null) {
                 throw new SyntaxException();
             } else {
@@ -328,7 +339,7 @@ public class SyntaxAnalyzer {
         return varDecl;
     }
 
-    public SyntaxClass readVarDef() throws SyntaxException {
+    public SyntaxClass readVarDef(SymbolTable curEnv) throws SyntaxException {
         if (pos >= tokenList.size()) {
             return null;
         }
@@ -342,12 +353,14 @@ public class SyntaxAnalyzer {
             varDef.appendSonNode(ident);
         }
         // 检查是否有左中括号
+        int brackNum = 0;
         Token token = tokenList.get(pos);
         while (token.getTokenType() == Token.LBRACK) {
+            ++brackNum;
             // 若有，检查ConstExp和右中括号
             ++pos;
             SyntaxClass constExp;
-            constExp = readConstExp();
+            constExp = readConstExp(curEnv);
             Token rbrack = tokenList.get(pos);
             if (rbrack.getTokenType() != Token.RBRACK) {
                 throw new SyntaxException();
@@ -365,18 +378,22 @@ public class SyntaxAnalyzer {
             varDef.appendSonNode(token);
             SyntaxClass initVal;
             // 检查InitVal
-            initVal = readInitVal();
+            initVal = readInitVal(curEnv);
             if (initVal == null) {
                 throw new SyntaxException();
             } else {
                 varDef.appendSonNode(initVal);
             }
         }
+        // Add current constdef to symbol table
+        VarSymbol curSymbol = new VarSymbol(ident, 1, brackNum);
+        // TODO: Duplicated Symbol Exception
+        curEnv.addSymbol(curSymbol);
         varDef.setFirstAsLineNo();
         return varDef;
     }
 
-    public SyntaxClass readInitVal() throws SyntaxException {
+    public SyntaxClass readInitVal(SymbolTable curEnv) throws SyntaxException {
         if (pos >= tokenList.size()) {
             return null;
         }
@@ -390,7 +407,7 @@ public class SyntaxAnalyzer {
             if (tokenList.get(pos).getTokenType() != Token.RBRACE) {
                 // 检查必须存在的InitVal
                 SyntaxClass subInitVal;
-                subInitVal = readInitVal();
+                subInitVal = readInitVal(curEnv);
                 if (subInitVal == null) {
                     throw new SyntaxException();
                 } else {
@@ -401,7 +418,7 @@ public class SyntaxAnalyzer {
                     token = tokenList.get(pos++);
                     initVal.appendSonNode(token);
                     // 需要一个InitVal
-                    subInitVal = readInitVal();
+                    subInitVal = readInitVal(curEnv);
                     if (subInitVal == null) {
                         throw new SyntaxException();
                     } else {
@@ -419,7 +436,7 @@ public class SyntaxAnalyzer {
         } else {
             // 单Exp情况
             SyntaxClass exp;
-            exp = readExp();
+            exp = readExp(curEnv);
             if (exp == null) {
                 throw new SyntaxException();
             } else {
@@ -430,7 +447,8 @@ public class SyntaxAnalyzer {
         return initVal;
     }
 
-    public SyntaxClass readFuncDef() throws SyntaxException {
+    public SyntaxClass readFuncDef(SymbolTable curEnv) throws SyntaxException {
+        // TODO: 创建新Env，且将函数形参加入新环境，然后将函数本身加入旧环境
         if (pos >= tokenList.size()) {
             return null;
         }
@@ -488,7 +506,7 @@ public class SyntaxAnalyzer {
         return funcDef;
     }
 
-    public SyntaxClass readMainFuncDef() throws SyntaxException {
+    public SyntaxClass readMainFuncDef(SymbolTable curEnv) throws SyntaxException {
         if (pos >= tokenList.size()) {
             return null;
         }
@@ -555,7 +573,7 @@ public class SyntaxAnalyzer {
         return funcType;
     }
 
-    public SyntaxClass readFuncFParams() throws SyntaxException {
+    public SyntaxClass readFuncFParams(SymbolTable curEnv) throws SyntaxException {
         if (pos >= tokenList.size()) {
             return null;
         }
@@ -583,7 +601,7 @@ public class SyntaxAnalyzer {
         return funcFParams;
     }
 
-    public SyntaxClass readFuncFParam() throws SyntaxException {
+    public SyntaxClass readFuncFParam(SymbolTable curEnv) throws SyntaxException {
         if (pos >= tokenList.size()) {
             return null;
         }
@@ -638,7 +656,7 @@ public class SyntaxAnalyzer {
         return funcFParam;
     }
 
-    public SyntaxClass readBlock() throws SyntaxException {
+    public SyntaxClass readBlock(SymbolTable curEnv) throws SyntaxException {
         if (pos >= tokenList.size()) {
             return null;
         }
@@ -684,7 +702,7 @@ public class SyntaxAnalyzer {
         return block;
     }
 
-    public SyntaxClass readBlockItem() throws SyntaxException {
+    public SyntaxClass readBlockItem(SymbolTable curEnv) throws SyntaxException {
         if (pos >= tokenList.size()) {
             return null;
         }
@@ -714,7 +732,7 @@ public class SyntaxAnalyzer {
         return blockItem;
     }
 
-    public SyntaxClass readStmt() throws SyntaxException {
+    public SyntaxClass readStmt(SymbolTable curEnv) throws SyntaxException {
         if (pos >= tokenList.size()) {
             return null;
         }
@@ -977,7 +995,7 @@ public class SyntaxAnalyzer {
         return stmt;
     }
 
-    public SyntaxClass readExp() throws SyntaxException {
+    public SyntaxClass readExp(SymbolTable curEnv) throws SyntaxException {
         if (pos >= tokenList.size()) {
             return null;
         }
@@ -991,7 +1009,7 @@ public class SyntaxAnalyzer {
         return exp;
     }
 
-    public SyntaxClass readCond() throws SyntaxException {
+    public SyntaxClass readCond(SymbolTable curEnv) throws SyntaxException {
         if (pos >= tokenList.size()) {
             return null;
         }
@@ -1005,7 +1023,7 @@ public class SyntaxAnalyzer {
         return exp;
     }
 
-    public SyntaxClass readLVal() throws SyntaxException {
+    public SyntaxClass readLVal(SymbolTable curEnv) throws SyntaxException {
         if (pos >= tokenList.size()) {
             return null;
         }
@@ -1041,7 +1059,7 @@ public class SyntaxAnalyzer {
         return lVal;
     }
 
-    public SyntaxClass readPrimaryExp() throws SyntaxException {
+    public SyntaxClass readPrimaryExp(SymbolTable curEnv) throws SyntaxException {
         if (pos >= tokenList.size()) {
             return null;
         }
@@ -1086,7 +1104,7 @@ public class SyntaxAnalyzer {
         return primaryExp;
     }
 
-    public SyntaxClass readNumber() throws SyntaxException {
+    public SyntaxClass readNumber(SymbolTable curEnv) throws SyntaxException {
         if (pos >= tokenList.size()) {
             return null;
         }
@@ -1102,7 +1120,7 @@ public class SyntaxAnalyzer {
         return number;
     }
 
-    public SyntaxClass readUnaryExp() throws SyntaxException {
+    public SyntaxClass readUnaryExp(SymbolTable curEnv) throws SyntaxException {
         if (pos >= tokenList.size()) {
             return null;
         }
@@ -1170,7 +1188,7 @@ public class SyntaxAnalyzer {
         return unaryExp;
     }
 
-    public SyntaxClass readUnaryOp() throws SyntaxException {
+    public SyntaxClass readUnaryOp(SymbolTable curEnv) throws SyntaxException {
         if (pos >= tokenList.size()) {
             return null;
         }
@@ -1187,7 +1205,7 @@ public class SyntaxAnalyzer {
         return unaryOp;
     }
 
-    public SyntaxClass readFuncRParams() throws SyntaxException {
+    public SyntaxClass readFuncRParams(SymbolTable curEnv) throws SyntaxException {
         if (pos >= tokenList.size()) {
             return null;
         }
@@ -1213,7 +1231,7 @@ public class SyntaxAnalyzer {
         return funcRParams;
     }
 
-    public SyntaxClass readMulExp() throws SyntaxException {
+    public SyntaxClass readMulExp(SymbolTable curEnv) throws SyntaxException {
         if (pos >= tokenList.size()) {
             return null;
         }
@@ -1248,7 +1266,7 @@ public class SyntaxAnalyzer {
         return mulExp;
     }
 
-    public SyntaxClass readAddExp() throws SyntaxException {
+    public SyntaxClass readAddExp(SymbolTable curEnv) throws SyntaxException {
         if (pos >= tokenList.size()) {
             return null;
         }
@@ -1283,7 +1301,7 @@ public class SyntaxAnalyzer {
         return addExp;
     }
 
-    public SyntaxClass readRelExp() throws SyntaxException {
+    public SyntaxClass readRelExp(SymbolTable curEnv) throws SyntaxException {
         if (pos >= tokenList.size()) {
             return null;
         }
@@ -1319,7 +1337,7 @@ public class SyntaxAnalyzer {
         return relExp;
     }
 
-    public SyntaxClass readEqExp() throws SyntaxException {
+    public SyntaxClass readEqExp(SymbolTable curEnv) throws SyntaxException {
         if (pos >= tokenList.size()) {
             return null;
         }
@@ -1354,7 +1372,7 @@ public class SyntaxAnalyzer {
         return eqExp;
     }
 
-    public SyntaxClass readLAndExp() throws SyntaxException {
+    public SyntaxClass readLAndExp(SymbolTable curEnv) throws SyntaxException {
         if (pos >= tokenList.size()) {
             return null;
         }
@@ -1389,7 +1407,7 @@ public class SyntaxAnalyzer {
         return lAndExp;
     }
 
-    public SyntaxClass readLOrExp() throws SyntaxException {
+    public SyntaxClass readLOrExp(SymbolTable curEnv) throws SyntaxException {
         if (pos >= tokenList.size()) {
             return null;
         }
@@ -1424,7 +1442,7 @@ public class SyntaxAnalyzer {
         return lOrExp;
     }
 
-    public SyntaxClass readConstExp() throws SyntaxException {
+    public SyntaxClass readConstExp(SymbolTable curEnv) throws SyntaxException {
         if (pos >= tokenList.size()) {
             return null;
         }

@@ -1,5 +1,7 @@
 package SyntaxClasses;
 
+import Symbols.SymbolTable;
+
 import java.util.LinkedList;
 
 public class SyntaxClass {
@@ -19,6 +21,8 @@ public class SyntaxClass {
     private int lineNo;
     private int syntaxType;
     private LinkedList<SyntaxClass> sonNodeList;
+    private SymbolTable curEnv; // 当前符号表
+    private int constValue;
 
 //    public SyntaxClass() {
 //
@@ -33,6 +37,26 @@ public class SyntaxClass {
         this.lineNo = lineNum;
         this.syntaxType = typeNum;
         this.sonNodeList = new LinkedList<>();
+    }
+
+    public void setConstValue(int constValue) {
+        this.constValue = constValue;
+    }
+
+    public int getConstValue() {
+        return constValue;
+    }
+
+    public LinkedList<SyntaxClass> getSonNodeList() {
+        return sonNodeList;
+    }
+
+    public void setCurEnv(SymbolTable curEnv) {
+        this.curEnv = curEnv;
+    }
+
+    public SymbolTable getCurEnv() {
+        return curEnv;
     }
 
     public void appendSonNode(SyntaxClass sonNode) {
