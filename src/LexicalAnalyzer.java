@@ -1,14 +1,17 @@
 import Exceptions.LexicalException;
 import SyntaxClasses.Token;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 
 public class LexicalAnalyzer {
     private StringBuilder programStr;
     private LinkedList<Token> tokenList;
+    private ArrayList<Error> errorList;
 
     public LexicalAnalyzer() {
         this.tokenList = new LinkedList<>();
+        this.errorList = new ArrayList<>();
     }
 
     public void setProgramStr(StringBuilder programStr) {
@@ -111,10 +114,47 @@ public class LexicalAnalyzer {
                 }
             } else if (readChr == '"') {
                 int start = pos - 1;
+                int status = 0;
                 while (pos < progLen) {
-                    if (this.programStr.charAt(pos++) == '"') {
+                    char curChar = this.programStr.charAt(pos);
+                    if (curChar == '"') {
                         break;
+                    } else {
+                        switch (status) {
+                            case 0: // 正常状态
+                                if (curChar == '\\') {
+                                    status = 1;
+                                } else if (curChar == '%') {
+                                    status = 2;
+                                } else if ((int) curChar < 40 || (int) curChar > 126) {
+                                    if ((int) curChar != 32 && (int) curChar != 33) {
+                                        status = 3;
+                                    }
+                                }
+                                break;
+                            case 1: // 收到一个\。需要一个n恢复正常
+                                if (curChar == 'n') {
+                                    status = 0;
+                                } else {
+                                    status = 3;
+                                }
+                                break;
+                            case 2: // 收到一个%。需要一个d恢复正常
+                                if (curChar == 'd') {
+                                    status = 0;
+                                } else {
+                                    status = 3;
+                                }
+                                break;
+                            case 3:
+                                break;
+                        }
                     }
+                    ++pos;
+                }
+                if (status != 0) {
+                    Error strconErr = new Error(0, lineNum);
+                    errorList.add(strconErr);
                 }
                 if (this.programStr.charAt(pos - 1) == '"') {
                     String context = this.programStr.substring(start, pos);

@@ -6,6 +6,7 @@ import SyntaxClasses.Token;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.PrintStream;
+import java.util.ArrayList;
 import java.util.LinkedList;
 
 public class Compiler {
@@ -21,6 +22,8 @@ public class Compiler {
         ReadFile readFile = new ReadFile("testfile.txt");
         LexicalAnalyzer lexicalAnalyzer = new LexicalAnalyzer();
         SyntaxAnalyzer syntaxAnalyzer = new SyntaxAnalyzer();
+        ArrayList<Error> errorList = new ArrayList<>();
+        syntaxAnalyzer.setErrorList(errorList);
         StringBuilder myProgram = readFile.readFile();
         lexicalAnalyzer.setProgramStr(myProgram);
         try {

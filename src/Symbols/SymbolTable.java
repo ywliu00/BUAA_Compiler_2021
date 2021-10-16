@@ -7,15 +7,26 @@ import java.util.HashMap;
 public class SymbolTable {
     private SymbolTable parent;
     private HashMap<String, Symbol> symbolMap;
+    private boolean cycleBlock;
 
     public SymbolTable() {
         parent = null;
         symbolMap = new HashMap<>();
+        cycleBlock = false;
     }
 
     public SymbolTable(SymbolTable parent) {
         this.parent = parent;
         symbolMap = new HashMap<>();
+        cycleBlock = false;
+    }
+
+    public void setCycleBlock(boolean cycleBlock) {
+        this.cycleBlock = cycleBlock;
+    }
+
+    public boolean isCycleBlock() {
+        return this.cycleBlock;
     }
 
     public SymbolTable getParent() {

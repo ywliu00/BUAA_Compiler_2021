@@ -1,4 +1,7 @@
+import Exceptions.DuplicatedDefineIdentException;
 import Exceptions.SyntaxException;
+import Symbols.FuncSymbol;
+import Symbols.SymbolAnalyzer;
 import Symbols.SymbolTable;
 import Symbols.VarSymbol;
 import SyntaxClasses.SyntaxClass;
@@ -11,15 +14,21 @@ public class SyntaxAnalyzer {
     private ArrayList<Token> tokenList;
     private SyntaxClass globalCompUnit;
     private int pos;
+    private ArrayList<Error> errorList;
 
     public SyntaxAnalyzer() {
         this.globalCompUnit = null;
         this.pos = 0;
+        errorList = new ArrayList<>();
     }
 
     public void setTokenList(LinkedList<Token> tokenList) {
         this.tokenList = new ArrayList<>();
         this.tokenList.addAll(tokenList);
+    }
+
+    public void setErrorList(ArrayList<Error> errorList) {
+        this.errorList = errorList;
     }
 
     public int getPos() {
@@ -87,6 +96,7 @@ public class SyntaxAnalyzer {
         }
         int startPos;
         SyntaxClass decl = new SyntaxClass(SyntaxClass.DECL);
+        decl.setCurEnv(curEnv);
         // 开头是const，说明是ConstDecl
         if (tokenList.get(pos).getTokenType() == Token.CONSTTK) {
             SyntaxClass constDecl;
@@ -124,6 +134,7 @@ public class SyntaxAnalyzer {
         }
         SyntaxClass constDecl = new SyntaxClass(SyntaxClass.CONSTDECL),
                 bType, constDef;
+        constDecl.setCurEnv(curEnv);
         Token constToken = tokenList.get(this.pos++);
         constDecl.appendSonNode(constToken);
         // 检查BType
@@ -189,6 +200,7 @@ public class SyntaxAnalyzer {
             return null;
         }
         SyntaxClass constDef = new SyntaxClass(SyntaxClass.CONSTDEF);
+        constDef.setCurEnv(curEnv);
         Token ident = tokenList.get(pos);
         int startPos;
         // 检查是否是标识符
@@ -237,8 +249,13 @@ public class SyntaxAnalyzer {
         // Add current constdef to symbol table
         VarSymbol curSymbol = new VarSymbol(ident, 0, brackNum);
         // TODO: Duplicated Symbol Exception
-        curEnv.addSymbol(curSymbol);
         constDef.setFirstAsLineNo();
+        try {
+            curEnv.addSymbol(curSymbol);
+        } catch (DuplicatedDefineIdentException e) {
+            Error duplicatedDefinedError = new Error(1, ident.getLineNo());
+            errorList.add(duplicatedDefinedError);
+        }
         return constDef;
     }
 
@@ -247,6 +264,7 @@ public class SyntaxAnalyzer {
             return null;
         }
         SyntaxClass constInitVal = new SyntaxClass(SyntaxClass.CONSTINITVAL);
+        constInitVal.setCurEnv(curEnv);
         // 检查是否是左花括号
         if (tokenList.get(pos).getTokenType() == Token.LBRACE) {
             Token token = tokenList.get(pos++);
@@ -300,6 +318,7 @@ public class SyntaxAnalyzer {
             return null;
         }
         SyntaxClass varDecl = new SyntaxClass(SyntaxClass.VARDECL);
+        varDecl.setCurEnv(curEnv);
         SyntaxClass bType, varDef;
         // 检查BType
         bType = readBType();
@@ -344,6 +363,7 @@ public class SyntaxAnalyzer {
             return null;
         }
         SyntaxClass varDef = new SyntaxClass(SyntaxClass.VARDEF);
+        varDef.setCurEnv(curEnv);
         Token ident = tokenList.get(pos);
         // 检查Token是否是标识符
         if (ident.getTokenType() != Token.IDENFR) {
@@ -387,9 +407,14 @@ public class SyntaxAnalyzer {
         }
         // Add current constdef to symbol table
         VarSymbol curSymbol = new VarSymbol(ident, 1, brackNum);
-        // TODO: Duplicated Symbol Exception
-        curEnv.addSymbol(curSymbol);
         varDef.setFirstAsLineNo();
+        // TODO: Duplicated Symbol Exception
+        try {
+            curEnv.addSymbol(curSymbol);
+        } catch (DuplicatedDefineIdentException e) {
+            Error duplicatedDefinedError = new Error(1, ident.getLineNo());
+            errorList.add(duplicatedDefinedError);
+        }
         return varDef;
     }
 
@@ -398,6 +423,7 @@ public class SyntaxAnalyzer {
             return null;
         }
         SyntaxClass initVal = new SyntaxClass(SyntaxClass.INITVAL);
+        initVal.setCurEnv(curEnv);
         Token token;
         // 检查是否是左花括号
         if (tokenList.get(pos).getTokenType() == Token.LBRACE) {
@@ -448,11 +474,12 @@ public class SyntaxAnalyzer {
     }
 
     public SyntaxClass readFuncDef(SymbolTable curEnv) throws SyntaxException {
-        // TODO: 创建新Env，且将函数形参加入新环境，然后将函数本身加入旧环境
         if (pos >= tokenList.size()) {
             return null;
         }
+        SymbolTable funcBlockEnv = new SymbolTable(curEnv);
         SyntaxClass funcDef = new SyntaxClass(SyntaxClass.FUNCDEF);
+        funcDef.setCurEnv(curEnv);
         SyntaxClass funcType, block;
         // 检查FuncType
         funcType = readFuncType();
@@ -480,7 +507,7 @@ public class SyntaxAnalyzer {
         // 若没有直接遇见右括号，说明中间有东西
         if (tokenList.get(pos).getTokenType() != Token.RPARENT) {
             SyntaxClass funcFParams;
-            funcFParams = readFuncFParams();
+            funcFParams = readFuncFParams(funcBlockEnv);
             if (funcFParams == null) {
                 throw new SyntaxException();
             } else {
@@ -496,13 +523,21 @@ public class SyntaxAnalyzer {
             funcDef.appendSonNode(ident);
         }
         // 检查Block
-        block = readBlock();
+        block = readBlock(funcBlockEnv);
         if (block == null) {
             throw new SyntaxException();
         } else {
             funcDef.appendSonNode(block);
         }
         funcDef.setFirstAsLineNo();
+        FuncSymbol funcSymbol = SymbolAnalyzer.getFuncSymbol(funcDef);
+        // TODO: Duplicated Symbol Exception
+        try {
+            curEnv.addSymbol(funcSymbol);
+        } catch (DuplicatedDefineIdentException e) {
+            Error duplicatedDefinedError = new Error(1, funcDef.getLineNo());
+            errorList.add(duplicatedDefinedError);
+        }
         return funcDef;
     }
 
@@ -510,8 +545,11 @@ public class SyntaxAnalyzer {
         if (pos >= tokenList.size()) {
             return null;
         }
+        SymbolTable mainFuncBlockEnv = new SymbolTable(curEnv);
         SyntaxClass mainFuncDef = new SyntaxClass(SyntaxClass.MAINFUNCDEF);
+        mainFuncDef.setCurEnv(curEnv);
         SyntaxClass block;
+        Token mainToken;
         // 检查int
         if (tokenList.get(pos).getTokenType() != Token.INTTK) {
             throw new SyntaxException();
@@ -524,9 +562,8 @@ public class SyntaxAnalyzer {
         if (tokenList.get(pos).getTokenType() != Token.MAINTK) {
             throw new SyntaxException();
         } else {
-            Token ident;
-            ident = tokenList.get(pos++);
-            mainFuncDef.appendSonNode(ident);
+            mainToken = tokenList.get(pos++);
+            mainFuncDef.appendSonNode(mainToken);
         }
         // 检查左括号
         if (tokenList.get(pos).getTokenType() != Token.LPARENT) {
@@ -545,13 +582,21 @@ public class SyntaxAnalyzer {
             mainFuncDef.appendSonNode(ident);
         }
         // 检查Block
-        block = readBlock();
+        block = readBlock(mainFuncBlockEnv);
         if (block == null) {
             throw new SyntaxException();
         } else {
             mainFuncDef.appendSonNode(block);
         }
         mainFuncDef.setFirstAsLineNo();
+        FuncSymbol mainFuncSymbol = new FuncSymbol(mainToken, true);
+        // TODO: Main func duplicated
+        try {
+            curEnv.addSymbol(mainFuncSymbol);
+        } catch (DuplicatedDefineIdentException e) {
+            Error duplicatedDefinedError = new Error(1, mainFuncDef.getLineNo());
+            errorList.add(duplicatedDefinedError);
+        }
         return mainFuncDef;
     }
 
@@ -578,9 +623,10 @@ public class SyntaxAnalyzer {
             return null;
         }
         SyntaxClass funcFParams = new SyntaxClass(SyntaxClass.FUNCFPARAMS);
+        funcFParams.setCurEnv(curEnv);
         SyntaxClass param;
         // 检查必须有的FuncFParam
-        param = readFuncFParam();
+        param = readFuncFParam(curEnv);
         if (param == null) {
             throw new SyntaxException();
         } else {
@@ -590,7 +636,7 @@ public class SyntaxAnalyzer {
         while (tokenList.get(pos).getTokenType() == Token.COMMA) {
             Token token = tokenList.get(pos++);
             funcFParams.appendSonNode(token);
-            param = readFuncFParam();
+            param = readFuncFParam(curEnv);
             if (param == null) {
                 throw new SyntaxException();
             } else {
@@ -606,6 +652,8 @@ public class SyntaxAnalyzer {
             return null;
         }
         SyntaxClass funcFParam = new SyntaxClass(SyntaxClass.FUNCFPARAM);
+        funcFParam.setCurEnv(curEnv);
+        Token fParamToken;
         // 检查BType
         SyntaxClass bType;
         bType = readBType();
@@ -616,13 +664,15 @@ public class SyntaxAnalyzer {
         }
         // 检查ident
         if (tokenList.get(pos).getTokenType() == Token.IDENFR) {
-            Token ident = tokenList.get(pos++);
-            funcFParam.appendSonNode(ident);
+            fParamToken = tokenList.get(pos++);
+            funcFParam.appendSonNode(fParamToken);
         } else {
             throw new SyntaxException();
         }
+        int brackNum = 0;
         // 如果有左中括号
         if (tokenList.get(pos).getTokenType() == Token.LBRACK) {
+            ++brackNum;
             Token ident = tokenList.get(pos++);
             funcFParam.appendSonNode(ident);
             // 需要跟一个右中括号
@@ -634,11 +684,12 @@ public class SyntaxAnalyzer {
             }
             // 如果还有左中括号
             while (tokenList.get(pos).getTokenType() == Token.LBRACK) {
+                ++brackNum;
                 ident = tokenList.get(pos++);
                 funcFParam.appendSonNode(ident);
                 // 检查一个ConstExp
                 SyntaxClass constExp;
-                constExp = readConstExp();
+                constExp = readConstExp(curEnv);
                 if (constExp == null) {
                     throw new SyntaxException();
                 }
@@ -653,6 +704,15 @@ public class SyntaxAnalyzer {
             }
         }
         funcFParam.setFirstAsLineNo();
+        VarSymbol paramSymbol = new VarSymbol(fParamToken, 1, brackNum); // 作为函数块内变量
+        // TODO:重定义错误（应该不会发生，除非int a, int a这种情况......）
+        try {
+            curEnv.addSymbol(paramSymbol);
+        } catch (DuplicatedDefineIdentException e) {
+            Error duplicatedDefinedError = new Error(1, fParamToken.getLineNo());
+            errorList.add(duplicatedDefinedError);
+        }
+        // TODO: 二维数组的第一维长度
         return funcFParam;
     }
 
@@ -661,6 +721,7 @@ public class SyntaxAnalyzer {
             return null;
         }
         SyntaxClass block = new SyntaxClass(SyntaxClass.BLOCK);
+        block.setCurEnv(curEnv);
         // 检查左花括号
         int startPos = pos;
         Token brace;
@@ -677,7 +738,7 @@ public class SyntaxAnalyzer {
                 // 准备回溯（疑似无必要）
                 startPos = pos;
                 try {
-                    blockItem = readBlockItem();
+                    blockItem = readBlockItem(curEnv);
                 } catch (SyntaxException e) {
                     pos = startPos;
                     break;
@@ -707,12 +768,13 @@ public class SyntaxAnalyzer {
             return null;
         }
         SyntaxClass blockItem = new SyntaxClass(SyntaxClass.BLOCKITEM);
+        blockItem.setCurEnv(curEnv);
         SyntaxClass syntaxClass;
 
         int startPos = pos, nextTokenType = tokenList.get(pos).getTokenType();
         if (nextTokenType == Token.CONSTTK || nextTokenType == Token.INTTK) {
             // 尝试解析Decl
-            syntaxClass = readDecl();
+            syntaxClass = readDecl(curEnv);
             if (syntaxClass == null) {
                 throw new SyntaxException();
             }
@@ -721,7 +783,7 @@ public class SyntaxAnalyzer {
             // 尝试解析Stmt
             // 先回溯
             // pos = startPos;
-            syntaxClass = readStmt();
+            syntaxClass = readStmt(curEnv);
             if (syntaxClass != null) {
                 blockItem.appendSonNode(syntaxClass);
             } else {
@@ -737,6 +799,7 @@ public class SyntaxAnalyzer {
             return null;
         }
         SyntaxClass stmt = new SyntaxClass(SyntaxClass.STMT);
+        stmt.setCurEnv(curEnv);
         int nextTokenType = tokenList.get(pos).getTokenType();
         // If
         if (nextTokenType == Token.IFTK) {
@@ -750,7 +813,7 @@ public class SyntaxAnalyzer {
                 throw new SyntaxException();
             }
             // Cond
-            SyntaxClass cond = readCond();
+            SyntaxClass cond = readCond(curEnv);
             if (cond == null) {
                 throw new SyntaxException();
             } else {
@@ -764,7 +827,9 @@ public class SyntaxAnalyzer {
                 throw new SyntaxException();
             }
             // Stmt
-            SyntaxClass subStmt = readStmt();
+            // 新作用域
+            SymbolTable ifStmtEnv = new SymbolTable(curEnv);
+            SyntaxClass subStmt = readStmt(ifStmtEnv);
             if (subStmt == null) {
                 throw new SyntaxException();
             } else {
@@ -775,7 +840,9 @@ public class SyntaxAnalyzer {
                 token = tokenList.get(pos++);
                 stmt.appendSonNode(token);
                 // Stmt
-                subStmt = readStmt();
+                // 新作用域
+                SymbolTable elseStmtEnv = new SymbolTable(curEnv);
+                subStmt = readStmt(elseStmtEnv);
                 if (subStmt == null) {
                     throw new SyntaxException();
                 } else {
@@ -794,7 +861,7 @@ public class SyntaxAnalyzer {
                 throw new SyntaxException();
             }
             // Cond
-            SyntaxClass cond = readCond();
+            SyntaxClass cond = readCond(curEnv);
             if (cond == null) {
                 throw new SyntaxException();
             } else {
@@ -808,7 +875,10 @@ public class SyntaxAnalyzer {
                 throw new SyntaxException();
             }
             // Stmt
-            SyntaxClass subStmt = readStmt();
+            // While的新作用域
+            SymbolTable whileStmtEnv = new SymbolTable(curEnv);
+            whileStmtEnv.setCycleBlock(true); // 标记为循环块的作用域
+            SyntaxClass subStmt = readStmt(whileStmtEnv);
             if (subStmt == null) {
                 throw new SyntaxException();
             } else {
@@ -825,6 +895,7 @@ public class SyntaxAnalyzer {
             } else {
                 throw new SyntaxException();
             }
+            // TODO: 循环块检测
         } else if (nextTokenType == Token.CONTINUETK) {
             // Continue
             Token token = tokenList.get(pos++);
@@ -836,6 +907,7 @@ public class SyntaxAnalyzer {
             } else {
                 throw new SyntaxException();
             }
+            // TODO: 循环块检测
         } else if (nextTokenType == Token.RETURNTK) {
             // Return
             Token token = tokenList.get(pos++);
@@ -847,7 +919,7 @@ public class SyntaxAnalyzer {
             } else {
                 // 没有分号，说明有返回值
                 SyntaxClass exp;
-                exp = readExp();
+                exp = readExp(curEnv);
                 if (exp == null) {
                     throw new SyntaxException();
                 } else {
@@ -861,6 +933,7 @@ public class SyntaxAnalyzer {
                     throw new SyntaxException();
                 }
             }
+            // TODO: 返回值正确性检测
         } else if (nextTokenType == Token.PRINTFTK) {
             // Printf
             Token token = tokenList.get(pos++);
@@ -884,13 +957,14 @@ public class SyntaxAnalyzer {
                 token = tokenList.get(pos++);
                 stmt.appendSonNode(token);
                 // 需要有Exp
-                SyntaxClass exp = readExp();
+                SyntaxClass exp = readExp(curEnv);
                 if (exp == null) {
                     throw new SyntaxException();
                 } else {
                     stmt.appendSonNode(exp);
                 }
             }
+            // TODO: printf参数数量检测
             // 右括号
             if (tokenList.get(pos).getTokenType() == Token.RPARENT) {
                 token = tokenList.get(pos++);
@@ -907,7 +981,9 @@ public class SyntaxAnalyzer {
             }
         } else if (nextTokenType == Token.LBRACE) {
             // 左花括号，说明是一个Block
-            SyntaxClass block = readBlock();
+            // 新作用域
+            SymbolTable blockEnv = new SymbolTable(curEnv);
+            SyntaxClass block = readBlock(blockEnv);
             if (block == null) {
                 throw new SyntaxException();
             } else {
@@ -926,7 +1002,7 @@ public class SyntaxAnalyzer {
                 SyntaxClass lVal = null;
                 boolean isLVal = true;
                 try {
-                    lVal = readLVal();
+                    lVal = readLVal(curEnv);
                 } catch (SyntaxException e) {
                     isLVal = false;
                 }
@@ -962,7 +1038,7 @@ public class SyntaxAnalyzer {
                         } else {
                             // 不是getint，则应该是Exp
                             SyntaxClass exp;
-                            exp = readExp();
+                            exp = readExp(curEnv);
                             if (exp == null) {
                                 throw new SyntaxException();
                             }
@@ -976,7 +1052,7 @@ public class SyntaxAnalyzer {
                 if (!isLVal) {
                     // 经过前面所有判断，认为不是单独的LVal，只能是非空的Exp，需要回溯
                     pos = startPos;
-                    SyntaxClass exp = readExp();
+                    SyntaxClass exp = readExp(curEnv);
                     if (exp == null) {
                         throw new SyntaxException();
                     }
@@ -1000,8 +1076,9 @@ public class SyntaxAnalyzer {
             return null;
         }
         SyntaxClass exp = new SyntaxClass(SyntaxClass.EXP), addExp;
+        exp.setCurEnv(curEnv);
         // 检查AddExp
-        addExp = readAddExp();
+        addExp = readAddExp(curEnv);
         if (addExp == null) {
             throw new SyntaxException();
         }
@@ -1013,14 +1090,15 @@ public class SyntaxAnalyzer {
         if (pos >= tokenList.size()) {
             return null;
         }
-        SyntaxClass exp = new SyntaxClass(SyntaxClass.COND), lOrExp;
+        SyntaxClass cond = new SyntaxClass(SyntaxClass.COND), lOrExp;
+        cond.setCurEnv(curEnv);
         // 检查LOrExp
-        lOrExp = readLOrExp();
+        lOrExp = readLOrExp(curEnv);
         if (lOrExp == null) {
             throw new SyntaxException();
         }
-        exp.appendSonNode(lOrExp);
-        return exp;
+        cond.appendSonNode(lOrExp);
+        return cond;
     }
 
     public SyntaxClass readLVal(SymbolTable curEnv) throws SyntaxException {
@@ -1028,18 +1106,21 @@ public class SyntaxAnalyzer {
             return null;
         }
         SyntaxClass lVal = new SyntaxClass(SyntaxClass.LVAL);
+        lVal.setCurEnv(curEnv);
         // 检查Ident
         Token ident;
         if (tokenList.get(pos).getTokenType() == Token.IDENFR) {
             ident = tokenList.get(pos++);
             lVal.appendSonNode(ident);
             // 检查可能有的左中括号
+            int brackNum = 0;
             while (tokenList.get(pos).getTokenType() == Token.LBRACK) {
+                ++brackNum;
                 Token brack = tokenList.get(pos++);
                 lVal.appendSonNode(brack);
                 SyntaxClass exp;
                 // Exp
-                exp = readExp();
+                exp = readExp(curEnv);
                 if (exp == null) {
                     throw new SyntaxException();
                 }
@@ -1055,6 +1136,7 @@ public class SyntaxAnalyzer {
         } else {
             throw new SyntaxException();
         }
+        // TODO: 检查左值有效性
         lVal.setFirstAsLineNo();
         return lVal;
     }
@@ -1064,6 +1146,7 @@ public class SyntaxAnalyzer {
             return null;
         }
         SyntaxClass primaryExp = new SyntaxClass(SyntaxClass.PRIMARYEXP);
+        primaryExp.setCurEnv(curEnv);
         // (Exp)
         if (tokenList.get(pos).getTokenType() == Token.LPARENT) {
             // (
@@ -1071,7 +1154,7 @@ public class SyntaxAnalyzer {
             primaryExp.appendSonNode(parent);
             // Exp
             SyntaxClass exp;
-            exp = readExp();
+            exp = readExp(curEnv);
             if (exp == null) {
                 throw new SyntaxException();
             }
@@ -1094,7 +1177,7 @@ public class SyntaxAnalyzer {
         } else {
             // LVal
             SyntaxClass lVal;
-            lVal = readLVal();
+            lVal = readLVal(curEnv);
             if (lVal == null) {
                 throw new SyntaxException();
             }
@@ -1104,7 +1187,7 @@ public class SyntaxAnalyzer {
         return primaryExp;
     }
 
-    public SyntaxClass readNumber(SymbolTable curEnv) throws SyntaxException {
+    public SyntaxClass readNumber() throws SyntaxException {
         if (pos >= tokenList.size()) {
             return null;
         }
@@ -1125,9 +1208,11 @@ public class SyntaxAnalyzer {
             return null;
         }
         SyntaxClass unaryExp = new SyntaxClass(SyntaxClass.UNARYEXP);
+        unaryExp.setCurEnv(curEnv);
         int nextTokenType = tokenList.get(pos).getTokenType();
         // Ident
         if (nextTokenType == Token.IDENFR && tokenList.get(pos + 1).getTokenType() == Token.LPARENT) {
+            // TODO: 函数调用参数正确性检查
             Token ident = tokenList.get(pos++);
             unaryExp.appendSonNode(ident);
             // 左括号
@@ -1141,7 +1226,7 @@ public class SyntaxAnalyzer {
             SyntaxClass funcRParams;
             int startPos = pos;
             try {
-                funcRParams = readFuncRParams();
+                funcRParams = readFuncRParams(curEnv); // 在当前作用域找
             } catch (SyntaxException e) {
                 // 出错说明没有能够读取到参数，那就是没有
                 funcRParams = null;
@@ -1170,7 +1255,7 @@ public class SyntaxAnalyzer {
             unaryExp.appendSonNode(unaryOp);
             // 检查一元表达式
             SyntaxClass subUnaryExp;
-            subUnaryExp = readUnaryExp();
+            subUnaryExp = readUnaryExp(curEnv);
             if (subUnaryExp == null) {
                 throw new SyntaxException();
             }
@@ -1178,7 +1263,7 @@ public class SyntaxAnalyzer {
         } else {
             // PrimaryExp
             SyntaxClass primaryExp;
-            primaryExp = readPrimaryExp();
+            primaryExp = readPrimaryExp(curEnv);
             if (primaryExp == null) {
                 throw new SyntaxException();
             }
@@ -1188,7 +1273,7 @@ public class SyntaxAnalyzer {
         return unaryExp;
     }
 
-    public SyntaxClass readUnaryOp(SymbolTable curEnv) throws SyntaxException {
+    public SyntaxClass readUnaryOp() throws SyntaxException {
         if (pos >= tokenList.size()) {
             return null;
         }
@@ -1210,9 +1295,10 @@ public class SyntaxAnalyzer {
             return null;
         }
         SyntaxClass funcRParams = new SyntaxClass(SyntaxClass.FUNCRPARAMS);
+        funcRParams.setCurEnv(curEnv);
         // 必须要有的Exp
         SyntaxClass exp;
-        exp = readExp();
+        exp = readExp(curEnv);
         if (exp == null) {
             throw new SyntaxException();
         }
@@ -1221,7 +1307,7 @@ public class SyntaxAnalyzer {
         while (tokenList.get(pos).getTokenType() == Token.COMMA) {
             Token comma = tokenList.get(pos++);
             funcRParams.appendSonNode(comma);
-            exp = readExp();
+            exp = readExp(curEnv);
             if (exp == null) {
                 throw new SyntaxException();
             }
@@ -1236,10 +1322,11 @@ public class SyntaxAnalyzer {
             return null;
         }
         SyntaxClass mulExp = new SyntaxClass(SyntaxClass.MULEXP);
+        mulExp.setCurEnv(curEnv);
         SyntaxClass unaryExp;
         // 修改文法，消除左递归
         // 需要一个UnaryExp
-        unaryExp = readUnaryExp();
+        unaryExp = readUnaryExp(curEnv);
         if (unaryExp == null) {
             throw new SyntaxException();
         }
@@ -1255,7 +1342,7 @@ public class SyntaxAnalyzer {
             Token token = tokenList.get(pos++);
             mulExp.appendSonNode(token);
             // UnaryExp
-            unaryExp = readUnaryExp();
+            unaryExp = readUnaryExp(curEnv);
             if (unaryExp == null) {
                 throw new SyntaxException();
             }
@@ -1271,10 +1358,11 @@ public class SyntaxAnalyzer {
             return null;
         }
         SyntaxClass addExp = new SyntaxClass(SyntaxClass.ADDEXP);
+        addExp.setCurEnv(curEnv);
         SyntaxClass mulExp;
         // 修改文法，消除左递归
         // 需要一个MulExp
-        mulExp = readMulExp();
+        mulExp = readMulExp(curEnv);
         if (mulExp == null) {
             throw new SyntaxException();
         }
@@ -1290,7 +1378,7 @@ public class SyntaxAnalyzer {
             Token token = tokenList.get(pos++);
             addExp.appendSonNode(token);
             // MulExp
-            mulExp = readMulExp();
+            mulExp = readMulExp(curEnv);
             if (mulExp == null) {
                 throw new SyntaxException();
             }
@@ -1306,10 +1394,11 @@ public class SyntaxAnalyzer {
             return null;
         }
         SyntaxClass relExp = new SyntaxClass(SyntaxClass.RELEXP);
+        relExp.setCurEnv(curEnv);
         SyntaxClass addExp;
         // 修改文法，消除左递归
         // 需要一个AddExp
-        addExp = readAddExp();
+        addExp = readAddExp(curEnv);
         if (addExp == null) {
             throw new SyntaxException();
         }
@@ -1326,7 +1415,7 @@ public class SyntaxAnalyzer {
             Token token = tokenList.get(pos++);
             relExp.appendSonNode(token);
             // AddExp
-            addExp = readAddExp();
+            addExp = readAddExp(curEnv);
             if (addExp == null) {
                 throw new SyntaxException();
             }
@@ -1342,10 +1431,11 @@ public class SyntaxAnalyzer {
             return null;
         }
         SyntaxClass eqExp = new SyntaxClass(SyntaxClass.EQEXP);
+        eqExp.setCurEnv(curEnv);
         SyntaxClass relExp;
         // 修改文法，消除左递归
         // 需要一个RelExp
-        relExp = readRelExp();
+        relExp = readRelExp(curEnv);
         if (relExp == null) {
             throw new SyntaxException();
         }
@@ -1361,7 +1451,7 @@ public class SyntaxAnalyzer {
             Token token = tokenList.get(pos++);
             eqExp.appendSonNode(token);
             // RelExp
-            relExp = readRelExp();
+            relExp = readRelExp(curEnv);
             if (relExp == null) {
                 throw new SyntaxException();
             }
@@ -1377,10 +1467,11 @@ public class SyntaxAnalyzer {
             return null;
         }
         SyntaxClass lAndExp = new SyntaxClass(SyntaxClass.LANDEXP);
+        lAndExp.setCurEnv(curEnv);
         SyntaxClass eqExp;
         // 修改文法，消除左递归
         // 需要一个EqExp
-        eqExp = readEqExp();
+        eqExp = readEqExp(curEnv);
         if (eqExp == null) {
             throw new SyntaxException();
         }
@@ -1396,7 +1487,7 @@ public class SyntaxAnalyzer {
             Token token = tokenList.get(pos++);
             lAndExp.appendSonNode(token);
             // EqExp
-            eqExp = readEqExp();
+            eqExp = readEqExp(curEnv);
             if (eqExp == null) {
                 throw new SyntaxException();
             }
@@ -1412,10 +1503,11 @@ public class SyntaxAnalyzer {
             return null;
         }
         SyntaxClass lOrExp = new SyntaxClass(SyntaxClass.LOREXP);
+        lOrExp.setCurEnv(curEnv);
         SyntaxClass lAndExp;
         // 修改文法，消除左递归
         // 需要一个LAndExp
-        lAndExp = readLAndExp();
+        lAndExp = readLAndExp(curEnv);
         if (lAndExp == null) {
             throw new SyntaxException();
         }
@@ -1431,7 +1523,7 @@ public class SyntaxAnalyzer {
             Token token = tokenList.get(pos++);
             lOrExp.appendSonNode(token);
             // LAndExp
-            lAndExp = readLAndExp();
+            lAndExp = readLAndExp(curEnv);
             if (lAndExp == null) {
                 throw new SyntaxException();
             }
@@ -1447,9 +1539,10 @@ public class SyntaxAnalyzer {
             return null;
         }
         SyntaxClass constExp = new SyntaxClass(SyntaxClass.CONSTEXP);
+        constExp.setCurEnv(curEnv);
         // AddExp
         SyntaxClass addExp;
-        addExp = readAddExp();
+        addExp = readAddExp(curEnv);
         if (addExp == null) {
             throw new SyntaxException();
         }
