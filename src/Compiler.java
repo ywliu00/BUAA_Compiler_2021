@@ -21,7 +21,7 @@ public class Compiler {
         }
         System.setOut(ps);
 
-        ReadFile readFile = new ReadFile("testfile_0.txt");
+        ReadFile readFile = new ReadFile("testfile.txt");
         LexicalAnalyzer lexicalAnalyzer = new LexicalAnalyzer();
         SyntaxAnalyzer syntaxAnalyzer = new SyntaxAnalyzer();
         ArrayList<Error> errorList = new ArrayList<>();
