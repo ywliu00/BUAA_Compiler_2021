@@ -172,7 +172,9 @@ public class SyntaxAnalyzer {
 
         // 检测分号
         if (tokenList.get(pos).getTokenType() != Token.SEMICN) {
-            throw new SyntaxException();
+            //throw new SyntaxException();
+            Error semicnMissingError = new Error(8, tokenList.get(pos - 1).getLineNo());
+            errorList.add(semicnMissingError);
         } else {
             Token semicn = tokenList.get(pos++);
             constDecl.appendSonNode(semicn);
@@ -223,7 +225,9 @@ public class SyntaxAnalyzer {
             Token rbrack = tokenList.get(pos);
             // TODO: Missing ']'
             if (rbrack.getTokenType() != Token.RBRACK) {
-                throw new SyntaxException();
+                Error rBrackMissingError = new Error(10, tokenList.get(pos - 1).getLineNo());
+                errorList.add(rBrackMissingError);
+                // throw new SyntaxException();
             } else {
                 ++pos;
                 constDef.appendSonNode(token);
@@ -352,7 +356,9 @@ public class SyntaxAnalyzer {
             token = tokenList.get(pos++);
             varDecl.appendSonNode(token);
         } else {
-            throw new SyntaxException();
+            Error semicnMissingError = new Error(8, tokenList.get(pos - 1).getLineNo());
+            errorList.add(semicnMissingError);
+            //throw new SyntaxException();
         }
         varDecl.setFirstAsLineNo();
         return varDecl;
@@ -383,7 +389,9 @@ public class SyntaxAnalyzer {
             constExp = readConstExp(curEnv);
             Token rbrack = tokenList.get(pos);
             if (rbrack.getTokenType() != Token.RBRACK) {
-                throw new SyntaxException();
+                Error rBrackMissingError = new Error(10, tokenList.get(pos - 1).getLineNo());
+                errorList.add(rBrackMissingError);
+                // throw new SyntaxException();
             } else {
                 ++pos;
                 varDef.appendSonNode(token);
@@ -516,7 +524,9 @@ public class SyntaxAnalyzer {
         }
         // 检查右括号
         if (tokenList.get(pos).getTokenType() != Token.RPARENT) {
-            throw new SyntaxException();
+            Error rParentMissingError = new Error(9, tokenList.get(pos - 1).getLineNo());
+            errorList.add(rParentMissingError);
+            //throw new SyntaxException();
         } else {
             Token ident;
             ident = tokenList.get(pos++);
@@ -575,7 +585,9 @@ public class SyntaxAnalyzer {
         }
         // 检查右括号
         if (tokenList.get(pos).getTokenType() != Token.RPARENT) {
-            throw new SyntaxException();
+            Error rParentMissingError = new Error(9, tokenList.get(pos - 1).getLineNo());
+            errorList.add(rParentMissingError);
+            // throw new SyntaxException();
         } else {
             Token ident;
             ident = tokenList.get(pos++);
@@ -680,7 +692,9 @@ public class SyntaxAnalyzer {
                 ident = tokenList.get(pos++);
                 funcFParam.appendSonNode(ident);
             } else {
-                throw new SyntaxException();
+                Error rBrackMissingError = new Error(10, tokenList.get(pos - 1).getLineNo());
+                errorList.add(rBrackMissingError);
+                // throw new SyntaxException();
             }
             // 如果还有左中括号
             while (tokenList.get(pos).getTokenType() == Token.LBRACK) {
@@ -699,7 +713,9 @@ public class SyntaxAnalyzer {
                     ident = tokenList.get(pos++);
                     funcFParam.appendSonNode(ident);
                 } else {
-                    throw new SyntaxException();
+                    Error rBrackMissingError = new Error(10, tokenList.get(pos - 1).getLineNo());
+                    errorList.add(rBrackMissingError);
+                    // throw new SyntaxException();
                 }
             }
         }
@@ -824,7 +840,9 @@ public class SyntaxAnalyzer {
                 token = tokenList.get(pos++);
                 stmt.appendSonNode(token);
             } else {
-                throw new SyntaxException();
+                Error rParentMissingError = new Error(9, tokenList.get(pos - 1).getLineNo());
+                errorList.add(rParentMissingError);
+                // throw new SyntaxException();
             }
             // Stmt
             // 新作用域
@@ -872,7 +890,9 @@ public class SyntaxAnalyzer {
                 token = tokenList.get(pos++);
                 stmt.appendSonNode(token);
             } else {
-                throw new SyntaxException();
+                Error rParentMissingError = new Error(9, tokenList.get(pos - 1).getLineNo());
+                errorList.add(rParentMissingError);
+                // throw new SyntaxException();
             }
             // Stmt
             // While的新作用域
@@ -893,7 +913,9 @@ public class SyntaxAnalyzer {
                 token = tokenList.get(pos++);
                 stmt.appendSonNode(token);
             } else {
-                throw new SyntaxException();
+                Error semicnMissingError = new Error(8, tokenList.get(pos - 1).getLineNo());
+                errorList.add(semicnMissingError);
+                //throw new SyntaxException();
             }
             // TODO: 循环块检测
         } else if (nextTokenType == Token.CONTINUETK) {
@@ -905,7 +927,9 @@ public class SyntaxAnalyzer {
                 token = tokenList.get(pos++);
                 stmt.appendSonNode(token);
             } else {
-                throw new SyntaxException();
+                Error semicnMissingError = new Error(8, tokenList.get(pos - 1).getLineNo());
+                errorList.add(semicnMissingError);
+                //throw new SyntaxException();
             }
             // TODO: 循环块检测
         } else if (nextTokenType == Token.RETURNTK) {
@@ -930,7 +954,9 @@ public class SyntaxAnalyzer {
                     token = tokenList.get(pos++);
                     stmt.appendSonNode(token);
                 } else {
-                    throw new SyntaxException();
+                    Error semicnMissingError = new Error(8, tokenList.get(pos - 1).getLineNo());
+                    errorList.add(semicnMissingError);
+                    //throw new SyntaxException();
                 }
             }
             // TODO: 返回值正确性检测
@@ -970,14 +996,18 @@ public class SyntaxAnalyzer {
                 token = tokenList.get(pos++);
                 stmt.appendSonNode(token);
             } else {
-                throw new SyntaxException();
+                Error rParentMissingError = new Error(9, tokenList.get(pos - 1).getLineNo());
+                errorList.add(rParentMissingError);
+                // throw new SyntaxException();
             }
             // 分号
             if (tokenList.get(pos).getTokenType() == Token.SEMICN) {
                 token = tokenList.get(pos++);
                 stmt.appendSonNode(token);
             } else {
-                throw new SyntaxException();
+                Error semicnMissingError = new Error(8, tokenList.get(pos - 1).getLineNo());
+                errorList.add(semicnMissingError);
+                // throw new SyntaxException();
             }
         } else if (nextTokenType == Token.LBRACE) {
             // 左花括号，说明是一个Block
@@ -1033,7 +1063,9 @@ public class SyntaxAnalyzer {
                                 token = tokenList.get(pos++);
                                 stmt.appendSonNode(token);
                             } else {
-                                throw new SyntaxException(); // getint 右括号缺失
+                                Error rParentMissingError = new Error(9, tokenList.get(pos - 1).getLineNo());
+                                errorList.add(rParentMissingError); // getint 右括号缺失
+                                // throw new SyntaxException();
                             }
                         } else {
                             // 不是getint，则应该是Exp
@@ -1063,7 +1095,9 @@ public class SyntaxAnalyzer {
                     semicn = tokenList.get(pos++);
                     stmt.appendSonNode(semicn);
                 } else {
-                    throw new SyntaxException();
+                    Error semicnMissingError = new Error(8, tokenList.get(pos - 1).getLineNo());
+                    errorList.add(semicnMissingError);
+                    //throw new SyntaxException();
                 }
             }
         }
@@ -1130,7 +1164,9 @@ public class SyntaxAnalyzer {
                     brack = tokenList.get(pos++);
                     lVal.appendSonNode(brack);
                 } else {
-                    throw new SyntaxException();
+                    Error rBrackMissingError = new Error(10, tokenList.get(pos - 1).getLineNo());
+                    errorList.add(rBrackMissingError);
+                    // throw new SyntaxException();
                 }
             }
         } else {
@@ -1164,7 +1200,9 @@ public class SyntaxAnalyzer {
                 parent = tokenList.get(pos++);
                 primaryExp.appendSonNode(parent);
             } else {
-                throw new SyntaxException();
+                Error rParentMissingError = new Error(9, tokenList.get(pos - 1).getLineNo());
+                errorList.add(rParentMissingError);
+                // throw new SyntaxException();
             }
         } else if (tokenList.get(pos).getTokenType() == Token.INTCON) {
             // Number
@@ -1240,7 +1278,9 @@ public class SyntaxAnalyzer {
                 Token rParent = tokenList.get(pos++);
                 unaryExp.appendSonNode(rParent);
             } else {
-                throw new SyntaxException();
+                Error rParentMissingError = new Error(9, tokenList.get(pos - 1).getLineNo());
+                errorList.add(rParentMissingError);
+                // throw new SyntaxException();
             }
         } else if (nextTokenType == Token.PLUS ||
                 nextTokenType == Token.MINU ||
