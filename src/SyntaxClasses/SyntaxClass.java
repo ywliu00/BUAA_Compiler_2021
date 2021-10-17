@@ -112,10 +112,8 @@ public class SyntaxClass {
                 calculated = true;
                 return constValue;
             } else if (syntaxType == LVAL) {
-                // TODO: 左值求值
                 SymbolTable lValEnv = getCurEnv();
                 Token ident = (Token) sonNodeList.get(0);
-
             }
         }
         return 0;

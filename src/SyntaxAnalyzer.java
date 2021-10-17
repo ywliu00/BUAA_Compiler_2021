@@ -1,9 +1,7 @@
 import Exceptions.DuplicatedDefineIdentException;
 import Exceptions.LValNotDefinedException;
-import Exceptions.SemicnMissingException;
 import Exceptions.SyntaxException;
 import Symbols.FuncSymbol;
-import Symbols.Symbol;
 import Symbols.SymbolAnalyzer;
 import Symbols.SymbolTable;
 import Symbols.VarSymbol;
@@ -226,7 +224,6 @@ public class SyntaxAnalyzer {
             startPos = pos;
             constExp = readConstExp(curEnv);
             Token rbrack = tokenList.get(pos);
-            // TODO: Missing ']'
             if (rbrack.getTokenType() != Token.RBRACK) {
                 Error rBrackMissingError = new Error(10, tokenList.get(pos - 1).getLineNo());
                 errorList.add(rBrackMissingError);
@@ -255,7 +252,6 @@ public class SyntaxAnalyzer {
         }
         // Add current constdef to symbol table
         VarSymbol curSymbol = new VarSymbol(ident, 0, brackNum);
-        // TODO: Duplicated Symbol Exception
         constDef.setFirstAsLineNo();
         try {
             curEnv.addSymbol(curSymbol);
@@ -425,7 +421,6 @@ public class SyntaxAnalyzer {
         // Add current constdef to symbol table
         VarSymbol curSymbol = new VarSymbol(ident, 1, brackNum);
         varDef.setFirstAsLineNo();
-        // TODO: Duplicated Symbol Exception
         try {
             curEnv.addSymbol(curSymbol);
         } catch (DuplicatedDefineIdentException e) {
@@ -618,7 +613,6 @@ public class SyntaxAnalyzer {
         // 先加入env
         FuncSymbol mainFuncSymbol = new FuncSymbol(mainToken, true);
         mainFuncBlockEnv.setCurFunc(mainFuncSymbol); // 设置当前函数
-        // TODO: Main func duplicated
         try {
             curEnv.addSymbol(mainFuncSymbol);
         } catch (DuplicatedDefineIdentException e) {
@@ -746,7 +740,6 @@ public class SyntaxAnalyzer {
         }
         funcFParam.setFirstAsLineNo();
         VarSymbol paramSymbol = new VarSymbol(fParamToken, 1, brackNum); // 作为函数块内变量
-        // TODO:重定义错误（应该不会发生，除非int a, int a这种情况......）
         try {
             curEnv.addSymbol(paramSymbol);
         } catch (DuplicatedDefineIdentException e) {

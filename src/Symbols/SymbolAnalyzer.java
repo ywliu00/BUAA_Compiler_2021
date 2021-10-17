@@ -47,8 +47,17 @@ public class SymbolAnalyzer {
                 }
                 SyntaxClass subUnaryExp = mulExp.getSonNodeList().get(0);
                 SyntaxClass primaryExp = subUnaryExp.getSonNodeList().get(0);
-                if (primaryExp.getSyntaxType() != SyntaxClass.PRIMARYEXP) { // 函数或式子
+                if (primaryExp.getSyntaxType() == SyntaxClass.UNARYOP) { // 式子
                     funcSymbol.addFormalParamType(0);
+                    continue;
+                } else if (primaryExp.getSyntaxType() == SyntaxClass.TOKEN) { // 函数
+                    // 函数调用有效性应该已经在前面检查过了，这里只检查类型
+                    FuncSymbol tokenSymbol = curEnv.funcGlobalLookup(((Token) primaryExp).getTokenContext());
+                    if (!tokenSymbol.funcHasReturn()) {
+                        funcSymbol.addFormalParamType(-1);
+                    } else {
+                        funcSymbol.addFormalParamType(0);
+                    }
                     continue;
                 }
                 SyntaxClass lVal = primaryExp.getSonNodeList().get(0);
