@@ -522,7 +522,7 @@ public class SyntaxAnalyzer {
             funcDef.appendSonNode(ident);
         }
         // 若没有直接遇见右括号，说明中间有东西
-        if (tokenList.get(pos).getTokenType() != Token.RPARENT) {
+        /*if (tokenList.get(pos).getTokenType() != Token.RPARENT) {
             SyntaxClass funcFParams;
             funcFParams = readFuncFParams(funcBlockEnv);
             if (funcFParams == null) {
@@ -530,11 +530,23 @@ public class SyntaxAnalyzer {
             } else {
                 funcDef.appendSonNode(funcFParams);
             }
+        }*/
+        int startPos = pos;
+        SyntaxClass funcFParams = null;
+        try {
+            funcFParams = readFuncFParams(funcBlockEnv);
+            funcDef.appendSonNode(funcFParams);
+        } catch (SyntaxException e) {
+            funcFParams = null;
+            pos = startPos;
         }
         // 检查右括号
         if (tokenList.get(pos).getTokenType() != Token.RPARENT) {
             Error rParentMissingError = new Error(9, tokenList.get(pos - 1).getLineNo());
             errorList.add(rParentMissingError);
+            // 没有你就给它加一个
+            Token rParentToken = new Token(Token.RPARENT, funcDef.getSonNodeList().getLast().getLineNo(), ")");
+            funcDef.appendSonNode(rParentToken);
             //throw new SyntaxException();
         } else {
             Token ident;
@@ -977,35 +989,40 @@ public class SyntaxAnalyzer {
             Token returnToken = tokenList.get(pos++), token;
             stmt.appendSonNode(returnToken);
             // 分号
+            /*if (tokenList.get(pos).getTokenType() == Token.SEMICN) {
+                token = tokenList.get(pos++);
+                stmt.appendSonNode(token);
+            } else {*/
+            // 没有分号，说明有返回值
+            SyntaxClass exp = null;
+            boolean hasReturnValue = true;
+            try {
+                exp = readExp(curEnv);
+            } catch (SyntaxException e) {
+                hasReturnValue = false;
+            }
+            if (hasReturnValue) {
+                stmt.appendSonNode(exp);
+            }
+            // 有返回值，检查返回值是否匹配函数类型
+            FuncSymbol curFuncSymbol = curEnv.checkCurFunc();
+            if (curFuncSymbol.funcHasReturn() != hasReturnValue) {
+                // 返回值与函数返回情况不匹配
+                int errType = curFuncSymbol.funcHasReturn() ? 6 : 5;
+                Error semicnMissingError = new Error(errType, returnToken.getLineNo());
+                errorList.add(semicnMissingError);
+            }
+            // 分号
             if (tokenList.get(pos).getTokenType() == Token.SEMICN) {
                 token = tokenList.get(pos++);
                 stmt.appendSonNode(token);
             } else {
-                // 没有分号，说明有返回值
-                SyntaxClass exp;
-                exp = readExp(curEnv);
-                if (exp == null) {
-                    throw new SyntaxException();
-                } else {
-                    stmt.appendSonNode(exp);
-                }
-                // 分号
-                if (tokenList.get(pos).getTokenType() == Token.SEMICN) {
-                    token = tokenList.get(pos++);
-                    stmt.appendSonNode(token);
-                } else {
-                    Error semicnMissingError = new Error(8, tokenList.get(pos - 1).getLineNo());
-                    errorList.add(semicnMissingError);
-                    //throw new SyntaxException();
-                }
-                // 检查返回值是否匹配函数类型
-                FuncSymbol curFuncSymbol = curEnv.checkCurFunc();
-                if (!curFuncSymbol.funcHasReturn()) {
-                    // void型却有返回值
-                    Error semicnMissingError = new Error(6, returnToken.getLineNo());
-                    errorList.add(semicnMissingError);
-                }
+                Error semicnMissingError = new Error(8, tokenList.get(pos - 1).getLineNo());
+                errorList.add(semicnMissingError);
+                //throw new SyntaxException();
             }
+
+            //}
         } else if (nextTokenType == Token.PRINTFTK) {
             // Printf
             Token token, printfToken = tokenList.get(pos++);
@@ -1104,14 +1121,15 @@ public class SyntaxAnalyzer {
                             // LVal内符号未定义
                             errorList.add(lValUndefinedError);
                         } else {
-                        // 给LVal赋值，需要检查LVal是否是常量
-                        Token lValToken = (Token) lVal.getSonNodeList().get(0);
-                        VarSymbol tokenSymbol = curEnv.varGlobalLookup(lValToken.getTokenContext());
-                        if (tokenSymbol != null && !tokenSymbol.isVar()) {
-                            // 确实是常量，寄了
-                            Error constantAssignmentError = new Error(7, lValToken.getLineNo());
-                            errorList.add(constantAssignmentError);
-                        }}
+                            // 给LVal赋值，需要检查LVal是否是常量
+                            Token lValToken = (Token) lVal.getSonNodeList().get(0);
+                            VarSymbol tokenSymbol = curEnv.varGlobalLookup(lValToken.getTokenContext());
+                            if (tokenSymbol != null && !tokenSymbol.isVar()) {
+                                // 确实是常量，寄了
+                                Error constantAssignmentError = new Error(7, lValToken.getLineNo());
+                                errorList.add(constantAssignmentError);
+                            }
+                        }
 
                         Token token = tokenList.get(pos++);
                         // 确实是等号，则LVal可以确认加入
@@ -1365,38 +1383,40 @@ public class SyntaxAnalyzer {
                 unaryExp.appendSonNode(funcRParams);
             }
             // 右括号
-            if (tokenList.get(pos).getTokenType() == Token.RPARENT) {
-                Token rParent = tokenList.get(pos++);
-                unaryExp.appendSonNode(rParent);
-            } else {
+            if (tokenList.get(pos).getTokenType() != Token.RPARENT) {
+                // 缺右括号
                 Error rParentMissingError = new Error(9, tokenList.get(pos - 1).getLineNo());
                 errorList.add(rParentMissingError);
                 // throw new SyntaxException();
-            }
-            // 先检查符号存在与否
-            FuncSymbol identSymbol = curEnv.funcGlobalLookup(ident.getTokenContext());
-            if (identSymbol == null) {
-                Error undefinedSymbolError = new Error(2, ident.getLineNo());
-                errorList.add(undefinedSymbolError);
             } else {
-                FuncSymbol curFuncSymbol = null;
-                boolean funcSymbolValid = true;
-                try {
-                    curFuncSymbol = SymbolAnalyzer.getCallFuncSymbol(unaryExp);
-                } catch (SyntaxException e) {
+                //不缺右括号，再进行接下来的检查
+                Token rParent = tokenList.get(pos++);
+                unaryExp.appendSonNode(rParent);
+                // 先检查符号存在与否
+                FuncSymbol identSymbol = curEnv.funcGlobalLookup(ident.getTokenContext());
+                if (identSymbol == null) {
+                    Error undefinedSymbolError = new Error(2, ident.getLineNo());
+                    errorList.add(undefinedSymbolError);
+                } else {
+                    FuncSymbol curFuncSymbol = null;
+                    boolean funcSymbolValid = true;
+                    try {
+                        curFuncSymbol = SymbolAnalyzer.getCallFuncSymbol(unaryExp);
+                    } catch (SyntaxException e) {
                     /*Error undefinedSymbolError = new Error(2, e.getLineNum());
                     errorList.add(undefinedSymbolError);*/
-                    funcSymbolValid = false;
-                }
-                if (funcSymbolValid) {
-                    if (!identSymbol.checkParamsLength(curFuncSymbol)) {
-                        // 检查参数个数
-                        Error undefinedSymbolError = new Error(3, ident.getLineNo());
-                        errorList.add(undefinedSymbolError);
-                    } else if (!identSymbol.checkConsistent(curFuncSymbol)) {
-                        // 检查参数类型
-                        Error undefinedSymbolError = new Error(4, ident.getLineNo());
-                        errorList.add(undefinedSymbolError);
+                        funcSymbolValid = false;
+                    }
+                    if (funcSymbolValid) {
+                        if (!identSymbol.checkParamsLength(curFuncSymbol)) {
+                            // 检查参数个数
+                            Error undefinedSymbolError = new Error(3, ident.getLineNo());
+                            errorList.add(undefinedSymbolError);
+                        } else if (!identSymbol.checkConsistent(curFuncSymbol)) {
+                            // 检查参数类型
+                            Error undefinedSymbolError = new Error(4, ident.getLineNo());
+                            errorList.add(undefinedSymbolError);
+                        }
                     }
                 }
             }

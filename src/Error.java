@@ -8,6 +8,10 @@ public class Error implements Comparable{
         this.lineNo = lineNo;
     }
 
+    public int getErrType() {
+        return errType;
+    }
+
     public int getLineNo() {
         return lineNo;
     }
@@ -20,7 +24,11 @@ public class Error implements Comparable{
     @Override
     public int compareTo(Object o) {
         if (o instanceof Error) {
-            return (this.lineNo - ((Error) o).getLineNo());
+            if (this.lineNo != ((Error) o).getLineNo()) {
+                return this.lineNo - ((Error) o).getLineNo();
+            } else {
+                return (this.errType - ((Error) o).getErrType());
+            }
         }
         return -1;
     }
