@@ -1,4 +1,5 @@
 import Exceptions.DuplicatedDefineIdentException;
+import Exceptions.LValNotDefinedException;
 import Exceptions.SemicnMissingException;
 import Exceptions.SyntaxException;
 import Symbols.FuncSymbol;
@@ -334,7 +335,7 @@ public class SyntaxAnalyzer {
             varDecl.appendSonNode(bType);
         }
         // 若下一个ident后面是括号，则说明是FuncDef
-        if (tokenList.get(pos + 1).getTokenType() == Token.LPARENT) {
+        if (pos + 1 < tokenList.size() && tokenList.get(pos + 1).getTokenType() == Token.LPARENT) {
             throw new SyntaxException();
         }
         // 检查VarDef
@@ -546,7 +547,7 @@ public class SyntaxAnalyzer {
         try {
             curEnv.addSymbol(funcSymbol);
         } catch (DuplicatedDefineIdentException e) {
-            Error duplicatedDefinedError = new Error(1, funcDef.getLineNo());
+            Error duplicatedDefinedError = new Error(1, funcSymbol.getlineNo());
             errorList.add(duplicatedDefinedError);
         }
         // 检查Block
@@ -1084,25 +1085,33 @@ public class SyntaxAnalyzer {
                 // 先试试LVal
                 SyntaxClass lVal = null;
                 boolean isLVal = true;
+                Error lValUndefinedError = null;
                 try {
                     lVal = readLVal(curEnv);
                 } catch (SyntaxException e) {
                     isLVal = false;
+                } catch (LValNotDefinedException e) {
+                    lValUndefinedError = new Error(2, e.getLineNum());
+                    lVal = e.getlVal();
                 }
-                if (lVal == null) {
+                if (lVal == null && lValUndefinedError == null) {
                     isLVal = false;
                 }
                 if (isLVal) {
                     // 检查是否跟着等号
                     if (tokenList.get(pos).getTokenType() == Token.ASSIGN) {
+                        if (lValUndefinedError != null) {
+                            // LVal内符号未定义
+                            errorList.add(lValUndefinedError);
+                        } else {
                         // 给LVal赋值，需要检查LVal是否是常量
                         Token lValToken = (Token) lVal.getSonNodeList().get(0);
-                        VarSymbol tokenSymbol = (VarSymbol) curEnv.globalLookup(lValToken.getTokenContext());
-                        if (!tokenSymbol.isVar()) {
+                        VarSymbol tokenSymbol = curEnv.varGlobalLookup(lValToken.getTokenContext());
+                        if (tokenSymbol != null && !tokenSymbol.isVar()) {
                             // 确实是常量，寄了
                             Error constantAssignmentError = new Error(7, lValToken.getLineNo());
                             errorList.add(constantAssignmentError);
-                        }
+                        }}
 
                         Token token = tokenList.get(pos++);
                         // 确实是等号，则LVal可以确认加入
@@ -1197,7 +1206,7 @@ public class SyntaxAnalyzer {
         return cond;
     }
 
-    public SyntaxClass readLVal(SymbolTable curEnv) throws SyntaxException {
+    public SyntaxClass readLVal(SymbolTable curEnv) throws SyntaxException, LValNotDefinedException {
         if (pos >= tokenList.size()) {
             return null;
         }
@@ -1208,12 +1217,9 @@ public class SyntaxAnalyzer {
         if (tokenList.get(pos).getTokenType() == Token.IDENFR) {
             ident = tokenList.get(pos++);
             lVal.appendSonNode(ident);
-            // 错误检查：查符号表是否存在该标识符
-            Symbol identSymbol = curEnv.globalLookup(ident.getTokenContext());
-            if (identSymbol == null) {
-                // 未定义符号
-                Error undefinedSymbolError = new Error(2, ident.getLineNo());
-                errorList.add(undefinedSymbolError);
+            // 检查后面是否跟了'('，若是，则说明是函数，不是LVal
+            if (tokenList.get(pos).getTokenType() == Token.LPARENT) {
+                throw new SyntaxException();
             }
             // 检查可能有的左中括号
             int brackNum = 0;
@@ -1238,10 +1244,20 @@ public class SyntaxAnalyzer {
                     // throw new SyntaxException();
                 }
             }
+            // 错误检查：查符号表是否存在该标识符
+            VarSymbol identSymbol = curEnv.varGlobalLookup(ident.getTokenContext());
+            if (identSymbol == null) {
+                // 未定义符号
+                LValNotDefinedException e = new LValNotDefinedException(ident.getLineNo());
+                lVal.setFirstAsLineNo();
+                e.setlVal(lVal);
+                throw e;
+                    /*Error undefinedSymbolError = new Error(2, ident.getLineNo());
+                    errorList.add(undefinedSymbolError);*/
+            }
         } else {
             throw new SyntaxException();
         }
-        // TODO: 检查左值有效性
         lVal.setFirstAsLineNo();
         return lVal;
     }
@@ -1283,8 +1299,15 @@ public class SyntaxAnalyzer {
             primaryExp.appendSonNode(number);
         } else {
             // LVal
-            SyntaxClass lVal;
-            lVal = readLVal(curEnv);
+            SyntaxClass lVal = null;
+            Error lValUndefinedError = null;
+            try {
+                lVal = readLVal(curEnv);
+            } catch (LValNotDefinedException e) {
+                lValUndefinedError = new Error(2, e.getLineNum());
+                errorList.add(lValUndefinedError);
+                lVal = e.getlVal();
+            }
             if (lVal == null) {
                 throw new SyntaxException();
             }
@@ -1317,7 +1340,7 @@ public class SyntaxAnalyzer {
         SyntaxClass unaryExp = new SyntaxClass(SyntaxClass.UNARYEXP);
         unaryExp.setCurEnv(curEnv);
         int nextTokenType = tokenList.get(pos).getTokenType();
-        // Ident
+        // Ident，即函数调用
         if (nextTokenType == Token.IDENFR && tokenList.get(pos + 1).getTokenType() == Token.LPARENT) {
             Token ident = tokenList.get(pos++);
             unaryExp.appendSonNode(ident);
@@ -1351,20 +1374,30 @@ public class SyntaxAnalyzer {
                 // throw new SyntaxException();
             }
             // 先检查符号存在与否
-            FuncSymbol identSymbol = (FuncSymbol) curEnv.globalLookup(ident.getTokenContext());
+            FuncSymbol identSymbol = curEnv.funcGlobalLookup(ident.getTokenContext());
             if (identSymbol == null) {
                 Error undefinedSymbolError = new Error(2, ident.getLineNo());
                 errorList.add(undefinedSymbolError);
             } else {
-                FuncSymbol curFuncSymbol = SymbolAnalyzer.getCallFuncSymbol(unaryExp);
-                if (!identSymbol.checkParamsLength(curFuncSymbol)) {
-                    // 检查参数个数
-                    Error undefinedSymbolError = new Error(3, ident.getLineNo());
-                    errorList.add(undefinedSymbolError);
-                } else if (!identSymbol.checkConsistent(curFuncSymbol)) {
-                    // 检查参数类型
-                    Error undefinedSymbolError = new Error(4, ident.getLineNo());
-                    errorList.add(undefinedSymbolError);
+                FuncSymbol curFuncSymbol = null;
+                boolean funcSymbolValid = true;
+                try {
+                    curFuncSymbol = SymbolAnalyzer.getCallFuncSymbol(unaryExp);
+                } catch (SyntaxException e) {
+                    /*Error undefinedSymbolError = new Error(2, e.getLineNum());
+                    errorList.add(undefinedSymbolError);*/
+                    funcSymbolValid = false;
+                }
+                if (funcSymbolValid) {
+                    if (!identSymbol.checkParamsLength(curFuncSymbol)) {
+                        // 检查参数个数
+                        Error undefinedSymbolError = new Error(3, ident.getLineNo());
+                        errorList.add(undefinedSymbolError);
+                    } else if (!identSymbol.checkConsistent(curFuncSymbol)) {
+                        // 检查参数类型
+                        Error undefinedSymbolError = new Error(4, ident.getLineNo());
+                        errorList.add(undefinedSymbolError);
+                    }
                 }
             }
         } else if (nextTokenType == Token.PLUS ||

@@ -23,6 +23,11 @@ public class FuncSymbol extends Symbol{
         fParams.add(type);
     }
 
+    public void addFormalParamType(int typeNo, int isVariable) {
+        SymbolType type = new SymbolType(typeNo, isVariable);
+        fParams.add(type);
+    }
+
     public ArrayList<SymbolType> getfParams() {
         return fParams;
     }

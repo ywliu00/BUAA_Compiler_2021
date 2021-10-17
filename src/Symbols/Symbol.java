@@ -13,6 +13,10 @@ public class Symbol {
         this.type = type;
     }
 
+    public int getlineNo() {
+        return token.getLineNo();
+    }
+
     public String getName() {
         return name;
     }

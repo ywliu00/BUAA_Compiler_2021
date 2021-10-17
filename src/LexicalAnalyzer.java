@@ -153,6 +153,15 @@ public class LexicalAnalyzer {
                                 }
                                 break;
                             case 3:
+                                if (curChar == '%') {
+                                    status = 4;
+                                }
+                                break;
+                            case 4: // 收到一个%。需要一个d恢复正常
+                                if (curChar == 'd') {
+                                    ++formatCharNum;
+                                }
+                                status = 3;
                                 break;
                         }
                     }

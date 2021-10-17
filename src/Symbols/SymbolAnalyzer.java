@@ -1,5 +1,6 @@
 package Symbols;
 
+import Exceptions.SyntaxException;
 import SyntaxClasses.SyntaxClass;
 import SyntaxClasses.Token;
 
@@ -21,7 +22,7 @@ public class SymbolAnalyzer {
 //
 //    }
 
-    public static FuncSymbol getCallFuncSymbol(SyntaxClass unaryExp) {
+    public static FuncSymbol getCallFuncSymbol(SyntaxClass unaryExp) throws SyntaxException {
         SymbolTable curEnv = unaryExp.getCurEnv();
         LinkedList<SyntaxClass> funcDefSonNodes = unaryExp.getSonNodeList();
         Token funcIdent = (Token) funcDefSonNodes.get(0);
@@ -56,8 +57,12 @@ public class SymbolAnalyzer {
                     continue;
                 }
                 Token ident = (Token) lVal.getSonNodeList().get(0);
-                Symbol tokenSymbol = curEnv.globalLookup(ident.getTokenContext());
-                int dimType = ((VarSymbol) tokenSymbol).getDimType();
+                VarSymbol tokenSymbol = curEnv.varGlobalLookup(ident.getTokenContext());
+                if (tokenSymbol == null) {
+                    throw new SyntaxException(ident.getLineNo());
+                }
+                int dimType = tokenSymbol.getDimType();
+                int isVariable = tokenSymbol.isVar() ? 1 : 0;
                 for (int j = 1; j < lVal.getSonNodeList().size(); ++j) {
                     if (lVal.getSonNodeList().get(j).getSyntaxType() == SyntaxClass.TOKEN) {
                         if (((Token) lVal.getSonNodeList().get(j)).getTokenType() == Token.LBRACK) { // 有一个方括号就减1
@@ -65,7 +70,7 @@ public class SymbolAnalyzer {
                         }
                     }
                 }
-                funcSymbol.addFormalParamType(dimType);
+                funcSymbol.addFormalParamType(dimType, isVariable);
             }
         }
         return funcSymbol;

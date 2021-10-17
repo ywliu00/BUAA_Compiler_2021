@@ -6,20 +6,23 @@ import java.util.HashMap;
 
 public class SymbolTable {
     private SymbolTable parent;
-    private HashMap<String, Symbol> symbolMap;
+    private HashMap<String, VarSymbol> varSymbolMap;
+    private HashMap<String, FuncSymbol> funcSymbolMap;
     private boolean cycleBlock;
     private FuncSymbol curFunc;
 
     public SymbolTable() {
         parent = null;
-        symbolMap = new HashMap<>();
+        varSymbolMap = new HashMap<>();
+        funcSymbolMap = new HashMap<>();
         cycleBlock = false;
         curFunc = null;
     }
 
     public SymbolTable(SymbolTable parent) {
         this.parent = parent;
-        symbolMap = new HashMap<>();
+        varSymbolMap = new HashMap<>();
+        funcSymbolMap = new HashMap<>();
         cycleBlock = false;
         curFunc = null;
     }
@@ -64,8 +67,45 @@ public class SymbolTable {
         return parent;
     }
 
+    public VarSymbol varLocalLookup(String name) {
+        return varSymbolMap.getOrDefault(name, null);
+    }
+
+    public VarSymbol varGlobalLookup(String name) {
+        SymbolTable curTable = this;
+        while (curTable != null) {
+            VarSymbol res = curTable.varLocalLookup(name);
+            if (res != null) {
+                return res;
+            }
+            curTable = curTable.getParent();
+        }
+        return null;
+    }
+
+    public FuncSymbol funcLocalLookup(String name) {
+        return funcSymbolMap.getOrDefault(name, null);
+    }
+
+    public FuncSymbol funcGlobalLookup(String name) {
+        SymbolTable curTable = this;
+        while (curTable != null) {
+            FuncSymbol res = curTable.funcLocalLookup(name);
+            if (res != null) {
+                return res;
+            }
+            curTable = curTable.getParent();
+        }
+        return null;
+    }
+
     public Symbol localLookup(String name) {
-        return symbolMap.getOrDefault(name, null);
+        Symbol res = varSymbolMap.getOrDefault(name, null);
+        if (res != null) {
+            return res;
+        } else {
+            return funcSymbolMap.getOrDefault(name, null);
+        }
     }
 
     public Symbol globalLookup(String name) {
@@ -82,10 +122,13 @@ public class SymbolTable {
 
     public void addSymbol(Symbol symbol) throws DuplicatedDefineIdentException {
         if (localLookup(symbol.getName()) != null) {
-            // TODO: 当前作用域重定义错误抛出
             throw new DuplicatedDefineIdentException();
         } else {
-            symbolMap.put(symbol.getName(), symbol);
+            if (symbol instanceof VarSymbol) {
+                varSymbolMap.put(symbol.getName(), (VarSymbol) symbol);
+            } else {
+                funcSymbolMap.put(symbol.getName(), (FuncSymbol) symbol);
+            }
         }
     }
 }

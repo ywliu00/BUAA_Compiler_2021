@@ -14,12 +14,15 @@ import java.util.LinkedList;
 public class Compiler {
     public static void main(String[] argv) {
         PrintStream ps = null;
-        try {
-            ps = new PrintStream(new FileOutputStream("error.txt"));
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
+        boolean isDebug = false;
+        if (!isDebug) {
+            try {
+                ps = new PrintStream(new FileOutputStream("error.txt"));
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            }
+            System.setOut(ps);
         }
-        System.setOut(ps);
 
         ReadFile readFile = new ReadFile("testfile.txt");
         LexicalAnalyzer lexicalAnalyzer = new LexicalAnalyzer();
