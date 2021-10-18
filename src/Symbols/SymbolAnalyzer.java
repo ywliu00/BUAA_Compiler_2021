@@ -52,7 +52,9 @@ public class SymbolAnalyzer {
                     continue;
                 } else if (primaryExp.getSyntaxType() == SyntaxClass.TOKEN) { // 函数
                     // 函数调用有效性应该已经在前面检查过了，这里只检查类型
-                    FuncSymbol tokenSymbol = curEnv.funcGlobalLookup(((Token) primaryExp).getTokenContext());
+                    //FuncSymbol tokenSymbol = curEnv.funcGlobalLookup(((Token) primaryExp).getTokenContext());
+                    FuncSymbol tokenSymbol = (FuncSymbol) curEnv.globalLookup(
+                            ((Token) primaryExp).getTokenContext(), 1);
                     if (!tokenSymbol.funcHasReturn()) {
                         funcSymbol.addFormalParamType(-1);
                     } else {
@@ -66,7 +68,8 @@ public class SymbolAnalyzer {
                     continue;
                 }
                 Token ident = (Token) lVal.getSonNodeList().get(0);
-                VarSymbol tokenSymbol = curEnv.varGlobalLookup(ident.getTokenContext());
+                //VarSymbol tokenSymbol = curEnv.varGlobalLookup(ident.getTokenContext());
+                VarSymbol tokenSymbol = (VarSymbol) curEnv.globalLookup(ident.getTokenContext(), 0);
                 if (tokenSymbol == null) {
                     throw new SyntaxException(ident.getLineNo());
                 }

@@ -83,6 +83,18 @@ public class SymbolTable {
         return null;
     }
 
+    public Symbol globalLookup(String name, int type) {
+        Symbol symbol = globalLookup(name);
+        if (symbol == null) {
+            return null;
+        }
+        if (type == 0) {
+            return (symbol instanceof VarSymbol) ? symbol : null;
+        } else {
+            return (symbol instanceof FuncSymbol) ? symbol : null;
+        }
+    }
+
     public FuncSymbol funcLocalLookup(String name) {
         return funcSymbolMap.getOrDefault(name, null);
     }

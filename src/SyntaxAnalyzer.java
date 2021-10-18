@@ -1116,7 +1116,8 @@ public class SyntaxAnalyzer {
                         } else {
                             // 给LVal赋值，需要检查LVal是否是常量
                             Token lValToken = (Token) lVal.getSonNodeList().get(0);
-                            VarSymbol tokenSymbol = curEnv.varGlobalLookup(lValToken.getTokenContext());
+                            //VarSymbol tokenSymbol = curEnv.varGlobalLookup(lValToken.getTokenContext());
+                            VarSymbol tokenSymbol = (VarSymbol) curEnv.globalLookup(lValToken.getTokenContext(), 0);
                             if (tokenSymbol != null && !tokenSymbol.isVar()) {
                                 // 确实是常量，寄了
                                 Error constantAssignmentError = new Error(7, lValToken.getLineNo());
@@ -1256,7 +1257,8 @@ public class SyntaxAnalyzer {
                 }
             }
             // 错误检查：查符号表是否存在该标识符
-            VarSymbol identSymbol = curEnv.varGlobalLookup(ident.getTokenContext());
+            //VarSymbol identSymbol = curEnv.varGlobalLookup(ident.getTokenContext());
+            VarSymbol identSymbol = (VarSymbol) curEnv.globalLookup(ident.getTokenContext(), 0);
             if (identSymbol == null) {
                 // 未定义符号
                 LValNotDefinedException e = new LValNotDefinedException(ident.getLineNo());
@@ -1386,7 +1388,8 @@ public class SyntaxAnalyzer {
                 Token rParent = tokenList.get(pos++);
                 unaryExp.appendSonNode(rParent);
                 // 先检查符号存在与否
-                FuncSymbol identSymbol = curEnv.funcGlobalLookup(ident.getTokenContext());
+                //FuncSymbol identSymbol = curEnv.funcGlobalLookup(ident.getTokenContext());
+                FuncSymbol identSymbol = (FuncSymbol) curEnv.globalLookup(ident.getTokenContext(), 1);
                 if (identSymbol == null) {
                     Error undefinedSymbolError = new Error(2, ident.getLineNo());
                     errorList.add(undefinedSymbolError);
