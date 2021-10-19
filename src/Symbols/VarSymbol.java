@@ -3,12 +3,12 @@ package Symbols;
 import SyntaxClasses.Token;
 
 public class VarSymbol extends Symbol {
-    private SymbolType type;
+    private SymbolType varType;
     private int[] dimLength;
 
     public VarSymbol(Token token, int isVar, int dimType) {
         super(token, 0);
-        type = new SymbolType(dimType, isVar);
+        varType = new SymbolType(dimType, isVar);
         dimLength = new int[]{0, 0, 0};
     }
 
@@ -17,11 +17,11 @@ public class VarSymbol extends Symbol {
     }
 
     public boolean isVar() {
-        return type.isVar();
+        return varType.isVar();
     }
 
     public int getDimType() {
-        return type.getDimType();
+        return varType.getDimType();
     }
 
     public int getDimLength(int dim) {
