@@ -83,7 +83,7 @@ public class SymbolTable {
         return null;
     }
 
-    public Symbol globalLookup(String name, int type) {
+    public Symbol globalLookup(String name, int type) { // 0:Var, 1:Func
         Symbol symbol = globalLookup(name);
         if (symbol == null) {
             return null;
@@ -118,6 +118,11 @@ public class SymbolTable {
         } else {
             return funcSymbolMap.getOrDefault(name, null);
         }
+    }
+
+    public Symbol upLevelLookup(String name, int type) {
+        SymbolTable curTable = this.getParent();
+        return (curTable == null) ? null : curTable.globalLookup(name, type);
     }
 
     public Symbol globalLookup(String name) {

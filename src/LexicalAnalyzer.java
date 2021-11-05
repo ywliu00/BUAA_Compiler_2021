@@ -1,4 +1,6 @@
 import Exceptions.LexicalException;
+import SyntaxClasses.ConstIntToken;
+import SyntaxClasses.FormatStringToken;
 import SyntaxClasses.Token;
 
 import java.util.ArrayList;
@@ -173,8 +175,8 @@ public class LexicalAnalyzer {
                 }
                 if (this.programStr.charAt(pos - 1) == '"') {
                     String context = this.programStr.substring(start, pos);
-                    curToken = new Token(Token.STRCON, lineNum, context);
-                    curToken.setFormatCharNum(formatCharNum);
+                    curToken = new FormatStringToken(lineNum, context);
+                    ((FormatStringToken) curToken).setFormatCharNum(formatCharNum);
                 } else {
                     throw new LexicalException(lineNum);
                 }
@@ -186,8 +188,8 @@ public class LexicalAnalyzer {
                         break;
                     }
                 }
-                curToken = new Token(Token.INTCON, lineNum, this.programStr.substring(start, pos));
-                curToken.setConstValue(Integer.parseInt(curToken.getTokenContext())); // 词法分析时求IntConst的值
+                curToken = new ConstIntToken(lineNum, this.programStr.substring(start, pos));
+                curToken.setConstValue(((ConstIntToken) curToken).getMyValue()); // 词法分析时求IntConst的值
                 curToken.setCalculated(true); // 标记为已求值
             } else if (isIdentNonDigit(readChr)) {
                 int start = pos - 1;

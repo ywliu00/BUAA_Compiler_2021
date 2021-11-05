@@ -5,6 +5,7 @@ import Symbols.FuncSymbol;
 import Symbols.SymbolAnalyzer;
 import Symbols.SymbolTable;
 import Symbols.VarSymbol;
+import SyntaxClasses.FormatStringToken;
 import SyntaxClasses.SyntaxClass;
 import SyntaxClasses.Token;
 
@@ -1032,7 +1033,7 @@ public class SyntaxAnalyzer {
             if (tokenList.get(pos).getTokenType() == Token.STRCON) {
                 token = tokenList.get(pos++);
                 stmt.appendSonNode(token);
-                formatCharNum = token.getFormatCharNum();
+                formatCharNum = ((FormatStringToken) token).getFormatCharNum();
             } else {
                 throw new SyntaxException();
             }

@@ -15,13 +15,13 @@ public class Compiler {
     public static void main(String[] argv) {
         PrintStream ps = null;
         try {
-            ps = new PrintStream(new FileOutputStream("error.txt"));
+            ps = new PrintStream(new FileOutputStream("testout.txt"));
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
         System.setOut(ps);
 
-        ReadFile readFile = new ReadFile("testfile.txt");
+        ReadFile readFile = new ReadFile("testfile_3.txt");
         LexicalAnalyzer lexicalAnalyzer = new LexicalAnalyzer();
         SyntaxAnalyzer syntaxAnalyzer = new SyntaxAnalyzer();
         ArrayList<Error> errorList = new ArrayList<>();
@@ -46,10 +46,13 @@ public class Compiler {
             e.printStackTrace();
         }
         SyntaxClass compUnit = syntaxAnalyzer.getGlobalCompUnit();
-        Collections.sort(errorList);
-        for (Error err : errorList) {
+        CompUnitSimplifyer.constCal(compUnit);
+        //Collections.sort(errorList);
+        /*for (Error err : errorList) {
             System.out.println(err);
-        }
+        }*/
+        StringBuilder afterStrBuilder = CompUnitSimplifyer.printUnit(compUnit);
+        System.out.println(afterStrBuilder);
         // System.out.println(compUnit);
     }
 }

@@ -40,13 +40,22 @@ public class SyntaxClass {
         this.lineNo = lineNum;
         this.syntaxType = typeNum;
         this.sonNodeList = new LinkedList<>();
+        calculated = false;
     }
 
     public void setCalculated(boolean isCalculated) {
         calculated = isCalculated;
     }
 
-    public int getConstValue() throws SyntaxException {
+    public boolean isCalculated() {
+        return calculated;
+    }
+
+    public int getConstValue() {
+        return constValue;
+    }
+
+    public int calConstValue() throws SyntaxException {
         if (!calculated) {
             if (syntaxType == CONSTEXP) {
                 constValue = sonNodeList.get(0).getConstValue();
