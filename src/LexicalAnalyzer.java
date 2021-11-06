@@ -120,7 +120,7 @@ public class LexicalAnalyzer {
                 }
             } else if (readChr == '"') {
                 int start = pos - 1;
-                int status = 0, formatCharNum = 0;
+                int status = 0;//, formatCharNum = 0;
                 while (pos < progLen) {
                     char curChar = this.programStr.charAt(pos);
                     if (curChar == '"') {
@@ -149,20 +149,21 @@ public class LexicalAnalyzer {
                             case 2: // 收到一个%。需要一个d恢复正常
                                 if (curChar == 'd') {
                                     status = 0;
-                                    ++formatCharNum;
+                                    //++formatCharNum;
                                 } else {
                                     status = 3;
                                 }
                                 break;
-                            case 3:
+                            case 3:// 死状态
                                 if (curChar == '%') {
                                     status = 4;
                                 }
                                 break;
-                            case 4: // 收到一个%。需要一个d恢复正常
-                                if (curChar == 'd') {
-                                    ++formatCharNum;
-                                }
+                            case 4: // 死状态
+                                // 收到一个%。需要一个d恢复正常
+                                // if (curChar == 'd') {
+                                    //++formatCharNum;
+                                // }
                                 status = 3;
                                 break;
                         }
@@ -176,7 +177,7 @@ public class LexicalAnalyzer {
                 if (this.programStr.charAt(pos - 1) == '"') {
                     String context = this.programStr.substring(start, pos);
                     curToken = new FormatStringToken(lineNum, context);
-                    ((FormatStringToken) curToken).setFormatCharNum(formatCharNum);
+                    //((FormatStringToken) curToken).setFormatCharNum(formatCharNum);
                 } else {
                     throw new LexicalException(lineNum);
                 }
