@@ -1,7 +1,9 @@
 package Symbols;
 
 import Exceptions.DuplicatedDefineIdentException;
+import IR.IRLabelSymbol;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 
 public class SymbolTable {
@@ -10,6 +12,8 @@ public class SymbolTable {
     private HashMap<String, FuncSymbol> funcSymbolMap;
     private boolean cycleBlock;
     private FuncSymbol curFunc;
+    private HashMap<VarSymbol, IRLabelSymbol> varRefMap;
+    private ArrayList<VarSymbol> varSymbolList;
 
     public SymbolTable() {
         parent = null;
@@ -17,6 +21,8 @@ public class SymbolTable {
         funcSymbolMap = new HashMap<>();
         cycleBlock = false;
         curFunc = null;
+        varRefMap = new HashMap<>();
+        varSymbolList = new ArrayList<>();
     }
 
     public SymbolTable(SymbolTable parent) {
@@ -25,6 +31,57 @@ public class SymbolTable {
         funcSymbolMap = new HashMap<>();
         cycleBlock = false;
         curFunc = null;
+        varRefMap = new HashMap<>();
+        varSymbolList = new ArrayList<>();
+    }
+
+    public void setVarRef(VarSymbol varSymbol, IRLabelSymbol refSymbol) {
+        varRefMap.put(varSymbol, refSymbol);
+    }
+
+    public IRLabelSymbol getCurLastRef(VarSymbol varSymbol) {
+        return varRefMap.getOrDefault(varSymbol, null);
+    }
+
+    public IRLabelSymbol getLastVarRef(VarSymbol varSymbol) {
+        SymbolTable curTable = this;
+        while (curTable != null) {
+            IRLabelSymbol refSymbol = curTable.getCurLastRef(varSymbol);
+            if (refSymbol != null) {
+                return refSymbol;
+            }
+            curTable = curTable.getParent();
+        }
+        return null;
+    }
+
+    public VarSymbol varLocalLookup(String name, int curListPos) {
+        for (int i = curListPos - 1; i >= 0; --i) {
+            if (varSymbolList.get(i).getName() == name) {
+                return varSymbolList.get(i);
+            }
+        }
+        return null;
+    }
+
+    public VarSymbol varGlobalLookup(String name, int curListPos) {
+        VarSymbol res = varLocalLookup(name, curListPos);
+        if (res != null) {
+            return res;
+        }
+        SymbolTable curTable = this.getParent();
+        while (curTable != null) {
+            res = curTable.varLocalLookup(name);
+            if (res != null) {
+                return res;
+            }
+            curTable = curTable.getParent();
+        }
+        return null;
+    }
+
+    public int getCurListPos() {
+        return varSymbolList.size();
     }
 
     public void setCurFunc(FuncSymbol curFunc) {
@@ -143,6 +200,7 @@ public class SymbolTable {
         } else {
             if (symbol instanceof VarSymbol) {
                 varSymbolMap.put(symbol.getName(), (VarSymbol) symbol);
+                varSymbolList.add((VarSymbol) symbol);
             } else {
                 funcSymbolMap.put(symbol.getName(), (FuncSymbol) symbol);
             }

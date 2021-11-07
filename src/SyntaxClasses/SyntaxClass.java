@@ -3,6 +3,7 @@ package SyntaxClasses;
 import Exceptions.SyntaxException;
 import Symbols.SymbolTable;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 
 public class SyntaxClass {
@@ -21,10 +22,11 @@ public class SyntaxClass {
             "LAndExp", "LOrExp", "ConstExp", "MainFuncDef"};
     private int lineNo;
     private int syntaxType;
-    private LinkedList<SyntaxClass> sonNodeList;
+    private ArrayList<SyntaxClass> sonNodeList;
     private SymbolTable curEnv; // 当前符号表
     private int constValue;
     private boolean calculated;
+    private int curVarListPos;
 
 //    public SyntaxClass() {
 //
@@ -32,15 +34,17 @@ public class SyntaxClass {
 
     public SyntaxClass(int syntaxType) {
         this.syntaxType = syntaxType;
-        this.sonNodeList = new LinkedList<>();
+        this.sonNodeList = new ArrayList<>();
         calculated = false;
+        curVarListPos = 0;
     }
 
     public SyntaxClass(int lineNum, int typeNum) {
         this.lineNo = lineNum;
         this.syntaxType = typeNum;
-        this.sonNodeList = new LinkedList<>();
+        this.sonNodeList = new ArrayList<>();
         calculated = false;
+        curVarListPos = 0;
     }
 
     public void setCalculated(boolean isCalculated) {
@@ -51,97 +55,102 @@ public class SyntaxClass {
         return calculated;
     }
 
+    public void setCurVarListPos(int curVarListPos) {
+        this.curVarListPos = curVarListPos;
+    }
+
+    public int getCurVarListPos() {
+        return curVarListPos;
+    }
+
     public int getConstValue() {
         return constValue;
     }
 
-    public int calConstValue() throws SyntaxException {
-        if (!calculated) {
-            if (syntaxType == CONSTEXP) {
-                constValue = sonNodeList.get(0).getConstValue();
-                calculated = true;
-                return constValue;
-            } else if (syntaxType == ADDEXP) {
-                if (sonNodeList.size() == 1) {
-                    constValue = sonNodeList.get(0).getConstValue();
-                } else {
-                    if (((Token) sonNodeList.get(1)).getTokenType() == Token.PLUS) {
-                        constValue = sonNodeList.get(0).getConstValue() + sonNodeList.get(2).getConstValue();
-                    } else {
-                        constValue = sonNodeList.get(0).getConstValue() - sonNodeList.get(2).getConstValue();
-                    }
-                }
-                calculated = true;
-                return constValue;
-            } else if (syntaxType == MULEXP) {
-                if (sonNodeList.size() == 1) {
-                    constValue = sonNodeList.get(0).getConstValue();
-                } else {
-                    if (((Token) sonNodeList.get(1)).getTokenType() == Token.MULT) {
-                        constValue = sonNodeList.get(0).getConstValue() * sonNodeList.get(2).getConstValue();
-                    } else {
-                        constValue = sonNodeList.get(0).getConstValue() / sonNodeList.get(2).getConstValue();
-                    }
-                }
-                calculated = true;
-                return constValue;
-            } else if (syntaxType == UNARYEXP) {
-                if (sonNodeList.get(0).getSyntaxType() == SyntaxClass.PRIMARYEXP) {
-                    constValue = sonNodeList.get(0).getConstValue();
-                } else if (sonNodeList.get(0).getSyntaxType() == SyntaxClass.UNARYOP) {
-                    SyntaxClass unaryOp = sonNodeList.get(0);
-                    if (((Token) unaryOp).getTokenType() == Token.PLUS) {
-                        constValue = sonNodeList.get(1).getConstValue();
-                    } else if (((Token) unaryOp).getTokenType() == Token.MINU){
-                        constValue = -sonNodeList.get(1).getConstValue();
-                    } else { // !，条件运算，逻辑取反
-                        constValue = (sonNodeList.get(1).getConstValue()) == 0 ? 1 : 0;
-                    }
-                } else { // 函数，无法计算
-                    throw new SyntaxException();
-                }
-                calculated = true;
-                return constValue;
-            } else if (syntaxType == PRIMARYEXP) {
-                if (sonNodeList.get(0).getSyntaxType() == SyntaxClass.LVAL) {
-                    constValue = sonNodeList.get(0).getConstValue();
-                } else if (sonNodeList.get(0).getSyntaxType() == SyntaxClass.NUMBER){
-                    constValue = sonNodeList.get(0).getConstValue();
-                } else { // (Exp)
-                    constValue = sonNodeList.get(1).getConstValue();
-                }
-                calculated = true;
-                return constValue;
-            } else if (syntaxType == EXP) {
-                constValue = sonNodeList.get(0).getConstValue();
-                calculated = true;
-                return constValue;
-            } else if (syntaxType == NUMBER) {
-                constValue = sonNodeList.get(0).getConstValue();
-                calculated = true;
-                return constValue;
-            } else if (syntaxType == LVAL) {
-                SymbolTable lValEnv = getCurEnv();
-                Token ident = (Token) sonNodeList.get(0);
-            }
-        }
-        return 0;
-    }
+//    public int calConstValue() throws SyntaxException {
+//        if (!calculated) {
+//            if (syntaxType == CONSTEXP) {
+//                constValue = sonNodeList.get(0).getConstValue();
+//                calculated = true;
+//                return constValue;
+//            } else if (syntaxType == ADDEXP) {
+//                if (sonNodeList.size() == 1) {
+//                    constValue = sonNodeList.get(0).getConstValue();
+//                } else {
+//                    if (((Token) sonNodeList.get(1)).getTokenType() == Token.PLUS) {
+//                        constValue = sonNodeList.get(0).getConstValue() + sonNodeList.get(2).getConstValue();
+//                    } else {
+//                        constValue = sonNodeList.get(0).getConstValue() - sonNodeList.get(2).getConstValue();
+//                    }
+//                }
+//                calculated = true;
+//                return constValue;
+//            } else if (syntaxType == MULEXP) {
+//                if (sonNodeList.size() == 1) {
+//                    constValue = sonNodeList.get(0).getConstValue();
+//                } else {
+//                    if (((Token) sonNodeList.get(1)).getTokenType() == Token.MULT) {
+//                        constValue = sonNodeList.get(0).getConstValue() * sonNodeList.get(2).getConstValue();
+//                    } else {
+//                        constValue = sonNodeList.get(0).getConstValue() / sonNodeList.get(2).getConstValue();
+//                    }
+//                }
+//                calculated = true;
+//                return constValue;
+//            } else if (syntaxType == UNARYEXP) {
+//                if (sonNodeList.get(0).getSyntaxType() == SyntaxClass.PRIMARYEXP) {
+//                    constValue = sonNodeList.get(0).getConstValue();
+//                } else if (sonNodeList.get(0).getSyntaxType() == SyntaxClass.UNARYOP) {
+//                    SyntaxClass unaryOp = sonNodeList.get(0);
+//                    if (((Token) unaryOp).getTokenType() == Token.PLUS) {
+//                        constValue = sonNodeList.get(1).getConstValue();
+//                    } else if (((Token) unaryOp).getTokenType() == Token.MINU){
+//                        constValue = -sonNodeList.get(1).getConstValue();
+//                    } else { // !，条件运算，逻辑取反
+//                        constValue = (sonNodeList.get(1).getConstValue()) == 0 ? 1 : 0;
+//                    }
+//                } else { // 函数，无法计算
+//                    throw new SyntaxException();
+//                }
+//                calculated = true;
+//                return constValue;
+//            } else if (syntaxType == PRIMARYEXP) {
+//                if (sonNodeList.get(0).getSyntaxType() == SyntaxClass.LVAL) {
+//                    constValue = sonNodeList.get(0).getConstValue();
+//                } else if (sonNodeList.get(0).getSyntaxType() == SyntaxClass.NUMBER){
+//                    constValue = sonNodeList.get(0).getConstValue();
+//                } else { // (Exp)
+//                    constValue = sonNodeList.get(1).getConstValue();
+//                }
+//                calculated = true;
+//                return constValue;
+//            } else if (syntaxType == EXP) {
+//                constValue = sonNodeList.get(0).getConstValue();
+//                calculated = true;
+//                return constValue;
+//            } else if (syntaxType == NUMBER) {
+//                constValue = sonNodeList.get(0).getConstValue();
+//                calculated = true;
+//                return constValue;
+//            } else if (syntaxType == LVAL) {
+//                SymbolTable lValEnv = getCurEnv();
+//                Token ident = (Token) sonNodeList.get(0);
+//            }
+//        }
+//        return 0;
+//    }
 
     public void setConstValue(int constValue) {
         this.constValue = constValue;
     }
 
-//    public int getConstValue() {
-//        return constValue;
-//    }
-
-    public LinkedList<SyntaxClass> getSonNodeList() {
+    public ArrayList<SyntaxClass> getSonNodeList() {
         return sonNodeList;
     }
 
     public void setCurEnv(SymbolTable curEnv) {
         this.curEnv = curEnv;
+        this.curVarListPos = curEnv.getCurListPos();
     }
 
     public SymbolTable getCurEnv() {
@@ -149,7 +158,7 @@ public class SyntaxClass {
     }
 
     public void appendSonNode(SyntaxClass sonNode) {
-        this.sonNodeList.addLast(sonNode);
+        this.sonNodeList.add(sonNode);
     }
 
     public int getSyntaxType() {

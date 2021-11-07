@@ -541,7 +541,8 @@ public class SyntaxAnalyzer {
             Error rParentMissingError = new Error(9, tokenList.get(pos - 1).getLineNo());
             errorList.add(rParentMissingError);
             // 没有你就给它加一个
-            Token rParentToken = new Token(Token.RPARENT, funcDef.getSonNodeList().getLast().getLineNo(), ")");
+            ArrayList<SyntaxClass> sonNodeList = funcDef.getSonNodeList();
+            Token rParentToken = new Token(Token.RPARENT, sonNodeList.get(sonNodeList.size() - 1).getLineNo(), ")");
             funcDef.appendSonNode(rParentToken);
             //throw new SyntaxException();
         } else {
@@ -793,10 +794,11 @@ public class SyntaxAnalyzer {
                 if (curEnv.getCurFunc() == null || !curEnv.getCurFunc().funcHasReturn()) {
                     retErr = false;
                 }
-                blockItem = block.getSonNodeList().getLast();
+                ArrayList<SyntaxClass> blockSonNodeList = block.getSonNodeList();
+                blockItem = blockSonNodeList.get(blockSonNodeList.size() - 1);
                 if (blockItem.getSyntaxType() == SyntaxClass.BLOCKITEM) {
-                    SyntaxClass stmt = blockItem.getSonNodeList().getLast();
-                    SyntaxClass returnToken = stmt.getSonNodeList().getFirst();
+                    SyntaxClass stmt = blockItem.getSonNodeList().get(blockItem.getSonNodeList().size() - 1);
+                    SyntaxClass returnToken = stmt.getSonNodeList().get(stmt.getSonNodeList().size() - 1);
                     if (returnToken.getSyntaxType() == SyntaxClass.TOKEN) {
                         if (((Token) returnToken).getTokenType() == Token.RETURNTK) {
                             retErr = false;

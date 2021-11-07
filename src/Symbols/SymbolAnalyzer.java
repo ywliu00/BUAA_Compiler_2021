@@ -24,13 +24,13 @@ public class SymbolAnalyzer {
 
     public static FuncSymbol getCallFuncSymbol(SyntaxClass unaryExp) throws SyntaxException {
         SymbolTable curEnv = unaryExp.getCurEnv();
-        LinkedList<SyntaxClass> funcDefSonNodes = unaryExp.getSonNodeList();
+        ArrayList<SyntaxClass> funcDefSonNodes = unaryExp.getSonNodeList();
         Token funcIdent = (Token) funcDefSonNodes.get(0);
         FuncSymbol funcSymbol = new FuncSymbol(funcIdent, true);
 
         SyntaxClass funcParams = funcDefSonNodes.get(2);
         if (funcParams.getSyntaxType() == SyntaxClass.FUNCRPARAMS) { // 若有实参
-            LinkedList<SyntaxClass> funcRParamList = funcParams.getSonNodeList();
+            ArrayList<SyntaxClass> funcRParamList = funcParams.getSonNodeList();
             for (int i = 0; i < funcRParamList.size(); i += 2) {
                 SyntaxClass exp = funcRParamList.get(i);
 //                System.out.println(exp);
@@ -89,7 +89,7 @@ public class SymbolAnalyzer {
     }
 
     public static FuncSymbol getFuncSymbol(SyntaxClass funcDef) {
-        LinkedList<SyntaxClass> funcDefSonNodes = funcDef.getSonNodeList();
+        ArrayList<SyntaxClass> funcDefSonNodes = funcDef.getSonNodeList();
         SyntaxClass funcType = funcDefSonNodes.get(0);
         boolean hasReturn;
         hasReturn = ((Token) funcType.getSonNodeList().get(0)).getTokenType() == Token.INTTK;
@@ -98,10 +98,10 @@ public class SymbolAnalyzer {
 
         SyntaxClass funcParams = funcDefSonNodes.get(3);
         if (funcParams.getSyntaxType() == SyntaxClass.FUNCFPARAMS) { // 若有形参
-            LinkedList<SyntaxClass> funcFParamList = funcParams.getSonNodeList();
+            ArrayList<SyntaxClass> funcFParamList = funcParams.getSonNodeList();
             for (int i = 0; i < funcFParamList.size(); i += 2) {
                 SyntaxClass funcfParam = funcFParamList.get(i);
-                LinkedList<SyntaxClass> fParamSonList = funcfParam.getSonNodeList();
+                ArrayList<SyntaxClass> fParamSonList = funcfParam.getSonNodeList();
                 Token fParamToken = (Token) fParamSonList.get(1);
                 int brackNum = 0, j = 2;
                 for (; j < fParamSonList.size(); ++j) {

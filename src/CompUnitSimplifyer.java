@@ -15,7 +15,7 @@ public class CompUnitSimplifyer {
     }
 
     public static void constCal(SyntaxClass curUnit) { // 符号表常量填充+常量折叠
-        LinkedList<SyntaxClass> sonList = curUnit.getSonNodeList();
+        ArrayList<SyntaxClass> sonList = curUnit.getSonNodeList();
         for (SyntaxClass syntaxClass : sonList) {
             /*if (syntaxClass.getSyntaxType() == SyntaxClass.DECL) {
                 declTableFill(syntaxClass);
@@ -37,8 +37,8 @@ public class CompUnitSimplifyer {
     }
 
     public static void declTableFill(SyntaxClass decl) {
-        SyntaxClass subDecl = decl.getSonNodeList().getFirst();
-        LinkedList<SyntaxClass> sonList = subDecl.getSonNodeList();
+        SyntaxClass subDecl = decl.getSonNodeList().get(0);
+        ArrayList<SyntaxClass> sonList = subDecl.getSonNodeList();
         int sonListLen = sonList.size();
         if (subDecl.getSyntaxType() == SyntaxClass.CONSTDECL) {
             for (int i = 2; i < sonListLen - 1; i += 2) { // 最后有分号，长度要减1
@@ -52,7 +52,7 @@ public class CompUnitSimplifyer {
     }
 
     public static void constDefTableFill(SyntaxClass constDef) {
-        LinkedList<SyntaxClass> sonList = constDef.getSonNodeList();
+        ArrayList<SyntaxClass> sonList = constDef.getSonNodeList();
         Token ident = (Token) sonList.get(0);
         VarSymbol identSymbol = (VarSymbol) constDef.getCurEnv().
                 globalLookup(ident.getTokenContext(), 0);
@@ -78,7 +78,7 @@ public class CompUnitSimplifyer {
                 identSymbol.setDimLengthByDim(0, dim0Length);
                 SyntaxClass constInitVal = sonList.get(8);
                 ArrayList<ArrayList<Integer>> constInitValArr = new ArrayList<>();
-                LinkedList<SyntaxClass> initSonList = constInitVal.getSonNodeList();
+                ArrayList<SyntaxClass> initSonList = constInitVal.getSonNodeList();
                 for (int i = 1; i < initSonList.size() - 1; i += 2) {
                     constInitValArr.add(oneDimConstInitValArr(initSonList.get(i)));
                 }
@@ -88,11 +88,11 @@ public class CompUnitSimplifyer {
     }
 
     public static ArrayList<Integer> oneDimConstInitValArr(SyntaxClass constInitVal) {
-        LinkedList<SyntaxClass> sonList = constInitVal.getSonNodeList();
+        ArrayList<SyntaxClass> sonList = constInitVal.getSonNodeList();
         ArrayList<Integer> initValArr = new ArrayList<>();
         for (int i = 1; i < sonList.size() - 1; i += 2) {
             SyntaxClass sonInitVal = sonList.get(i);
-            SyntaxClass sonConstExp = sonInitVal.getSonNodeList().getFirst();
+            SyntaxClass sonConstExp = sonInitVal.getSonNodeList().get(0);
             constExpCal(sonConstExp);
             initValArr.add(sonConstExp.getConstValue());
         }
@@ -100,7 +100,7 @@ public class CompUnitSimplifyer {
     }
 
     public static void varDefTableFill(SyntaxClass varDef) {
-        LinkedList<SyntaxClass> sonList = varDef.getSonNodeList();
+        ArrayList<SyntaxClass> sonList = varDef.getSonNodeList();
         Token ident = (Token) sonList.get(0);
         VarSymbol identSymbol = (VarSymbol) varDef.getCurEnv().
                 globalLookup(ident.getTokenContext(), 0);
@@ -127,7 +127,7 @@ public class CompUnitSimplifyer {
 
     // 形参长度设置
     public static void fParamTableFill(SyntaxClass funcFParam) {
-        LinkedList<SyntaxClass> sonList = funcFParam.getSonNodeList();
+        ArrayList<SyntaxClass> sonList = funcFParam.getSonNodeList();
         Token ident = (Token) sonList.get(1);
         VarSymbol identSymbol = (VarSymbol) funcFParam.getCurEnv().
                 globalLookup(ident.getTokenContext(), 0);
@@ -144,7 +144,7 @@ public class CompUnitSimplifyer {
         if (exp.isCalculated()) {
             return;
         }
-        LinkedList<SyntaxClass> expSonNodeList = exp.getSonNodeList();
+        ArrayList<SyntaxClass> expSonNodeList = exp.getSonNodeList();
         SyntaxClass sonAddExp = expSonNodeList.get(0);
         addCal(sonAddExp);
         if (sonAddExp.isCalculated()) {
@@ -157,10 +157,14 @@ public class CompUnitSimplifyer {
         if (addExp.isCalculated()) {
             return;
         }
-        LinkedList<SyntaxClass> expSonNodeList = addExp.getSonNodeList();
+        ArrayList<SyntaxClass> expSonNodeList = addExp.getSonNodeList();
         if (expSonNodeList.size() == 1) {
             SyntaxClass sonMulExp = expSonNodeList.get(0);
-            mulCal(sonMulExp);
+            if (sonMulExp.getSyntaxType() == SyntaxClass.MULEXP) {
+                mulCal(sonMulExp);
+            } else {
+                addCal(sonMulExp);
+            }
             if (sonMulExp.isCalculated()) {
                 addExp.setConstValue(sonMulExp.getConstValue());
                 addExp.setCalculated(true);
@@ -169,7 +173,11 @@ public class CompUnitSimplifyer {
             SyntaxClass sonAddExp = expSonNodeList.get(0);
             addCal(sonAddExp);
             SyntaxClass sonMulExp = expSonNodeList.get(2);
-            mulCal(sonMulExp);
+            if (sonMulExp.getSyntaxType() == SyntaxClass.MULEXP) {
+                mulCal(sonMulExp);
+            } else {
+                addCal(sonMulExp);
+            }
             if (sonAddExp.isCalculated() && sonMulExp.isCalculated()) {
                 Token symbolToken = (Token) expSonNodeList.get(1);
                 if (symbolToken.getTokenType() == Token.PLUS) {
@@ -186,7 +194,7 @@ public class CompUnitSimplifyer {
         if (mulExp.isCalculated()) {
             return;
         }
-        LinkedList<SyntaxClass> expSonNodeList = mulExp.getSonNodeList();
+        ArrayList<SyntaxClass> expSonNodeList = mulExp.getSonNodeList();
         if (expSonNodeList.size() == 1) {
             SyntaxClass sonUnaryExp = expSonNodeList.get(0);
             unaryCal(sonUnaryExp);
@@ -216,7 +224,7 @@ public class CompUnitSimplifyer {
         if (unaryExp.isCalculated()) {
             return;
         }
-        LinkedList<SyntaxClass> expSonNodeList = unaryExp.getSonNodeList();
+        ArrayList<SyntaxClass> expSonNodeList = unaryExp.getSonNodeList();
         SyntaxClass sonExp = expSonNodeList.get(0);
         if (sonExp.getSyntaxType() == SyntaxClass.PRIMARYEXP) {
             primaryCal(sonExp);
@@ -229,7 +237,7 @@ public class CompUnitSimplifyer {
             sonExp = expSonNodeList.get(1);
             unaryCal(sonExp);
             if (sonExp.isCalculated()) {
-                Token unaryOpToken = (Token) unaryOp.getSonNodeList().getFirst();
+                Token unaryOpToken = (Token) unaryOp.getSonNodeList().get(0);
                 int constValue;
                 if (unaryOpToken.getTokenType() == Token.MINU) {
                     constValue = -sonExp.getConstValue();
@@ -248,7 +256,7 @@ public class CompUnitSimplifyer {
         if (primaryExp.isCalculated()) {
             return;
         }
-        LinkedList<SyntaxClass> expSonNodeList = primaryExp.getSonNodeList();
+        ArrayList<SyntaxClass> expSonNodeList = primaryExp.getSonNodeList();
         if (expSonNodeList.size() == 1) {
             SyntaxClass sonExp = expSonNodeList.get(0);
             if (sonExp.getSyntaxType() == SyntaxClass.NUMBER) {
@@ -277,7 +285,7 @@ public class CompUnitSimplifyer {
         if (lVal.isCalculated()) {
             return;
         }
-        LinkedList<SyntaxClass> expSonNodeList = lVal.getSonNodeList();
+        ArrayList<SyntaxClass> expSonNodeList = lVal.getSonNodeList();
         Token ident = (Token) expSonNodeList.get(0);
         SymbolTable lValEnv = lVal.getCurEnv();
         VarSymbol identSymbol = (VarSymbol) lValEnv.globalLookup(ident.getTokenContext(), 0);
@@ -317,7 +325,7 @@ public class CompUnitSimplifyer {
         if (constExp.isCalculated()) {
             return;
         }
-        LinkedList<SyntaxClass> expSonNodeList = constExp.getSonNodeList();
+        ArrayList<SyntaxClass> expSonNodeList = constExp.getSonNodeList();
         SyntaxClass sonAddExp = expSonNodeList.get(0);
         constAddCal(sonAddExp);
         constExp.setConstValue(sonAddExp.getConstValue());
@@ -328,7 +336,7 @@ public class CompUnitSimplifyer {
         if (constAddExp.isCalculated()) {
             return;
         }
-        LinkedList<SyntaxClass> expSonNodeList = constAddExp.getSonNodeList();
+        ArrayList<SyntaxClass> expSonNodeList = constAddExp.getSonNodeList();
         if (expSonNodeList.size() == 1) {
             SyntaxClass sonMulExp = expSonNodeList.get(0);
             constMulCal(sonMulExp);
@@ -352,7 +360,7 @@ public class CompUnitSimplifyer {
         if (constMulExp.isCalculated()) {
             return;
         }
-        LinkedList<SyntaxClass> expSonNodeList = constMulExp.getSonNodeList();
+        ArrayList<SyntaxClass> expSonNodeList = constMulExp.getSonNodeList();
         if (expSonNodeList.size() == 1) {
             SyntaxClass sonUnaryExp = expSonNodeList.get(0);
             constUnaryCal(sonUnaryExp);
@@ -377,7 +385,7 @@ public class CompUnitSimplifyer {
         if (constUnaryExp.isCalculated()) {
             return;
         }
-        LinkedList<SyntaxClass> expSonNodeList = constUnaryExp.getSonNodeList();
+        ArrayList<SyntaxClass> expSonNodeList = constUnaryExp.getSonNodeList();
         SyntaxClass sonExp = expSonNodeList.get(0);
         if (sonExp.getSyntaxType() == SyntaxClass.PRIMARYEXP) {
             constPrimaryCal(sonExp);
@@ -386,7 +394,7 @@ public class CompUnitSimplifyer {
             SyntaxClass unaryOp = sonExp;
             sonExp = expSonNodeList.get(1);
             constUnaryCal(sonExp);
-            Token unaryOpToken = (Token) unaryOp.getSonNodeList().getFirst();
+            Token unaryOpToken = (Token) unaryOp.getSonNodeList().get(0);
             int constValue;
             if (unaryOpToken.getTokenType() == Token.MINU) {
                 constValue = -sonExp.getConstValue();
@@ -404,7 +412,7 @@ public class CompUnitSimplifyer {
         if (constPrimaryExp.isCalculated()) {
             return;
         }
-        LinkedList<SyntaxClass> expSonNodeList = constPrimaryExp.getSonNodeList();
+        ArrayList<SyntaxClass> expSonNodeList = constPrimaryExp.getSonNodeList();
         if (expSonNodeList.size() == 1) {
             SyntaxClass sonExp = expSonNodeList.get(0);
             if (sonExp.getSyntaxType() == SyntaxClass.NUMBER) {
@@ -425,7 +433,7 @@ public class CompUnitSimplifyer {
         if (constLVal.isCalculated()) {
             return;
         }
-        LinkedList<SyntaxClass> expSonNodeList = constLVal.getSonNodeList();
+        ArrayList<SyntaxClass> expSonNodeList = constLVal.getSonNodeList();
         Token ident = (Token) expSonNodeList.get(0);
         SymbolTable lValEnv = constLVal.getCurEnv();
         VarSymbol identSymbol = (VarSymbol) lValEnv.globalLookup(ident.getTokenContext(), 0);
@@ -455,7 +463,7 @@ public class CompUnitSimplifyer {
         if (numberExp.isCalculated()) {
             return;
         }
-        LinkedList<SyntaxClass> expSonNodeList = numberExp.getSonNodeList();
+        ArrayList<SyntaxClass> expSonNodeList = numberExp.getSonNodeList();
         ConstIntToken numberToken = (ConstIntToken) expSonNodeList.get(0);
         numberExp.setConstValue(numberToken.getMyValue());
         numberExp.setCalculated(true);
@@ -479,7 +487,7 @@ public class CompUnitSimplifyer {
             return new StringBuilder(Integer.toString(curUnit.getConstValue()));
         }
         StringBuilder stringBuilder = new StringBuilder();
-        LinkedList<SyntaxClass> sonList = curUnit.getSonNodeList();
+        ArrayList<SyntaxClass> sonList = curUnit.getSonNodeList();
         for (SyntaxClass unit : sonList) {
             stringBuilder.append(printUnit(unit));
             if (unit.getSyntaxType() == SyntaxClass.BLOCK) {
