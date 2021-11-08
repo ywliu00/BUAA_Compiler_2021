@@ -7,7 +7,7 @@ public class IRElem {
             LSHIFT = 5, RSHIFT = 6, GRE = 7, GEQ = 8, LSS = 9, LEQ = 10,
             EQL = 11, NEQ = 12, BR = 13, BZ = 14, CALL = 15, RET = 16,
             EXIT = 17, LOAD = 18, STORE = 19, ALLOCA = 20, GETINT = 21,
-            PRINT = 22, FUNC = 23, LABEL = 24;
+            PRINT = 22, FUNC = 23, LABEL = 24, AND = 25, OR = 26;
     private int type;
     private IRSymbol op1;
     private IRSymbol op2;
@@ -46,11 +46,19 @@ public class IRElem {
         this.symbolList = null;
     }
 
-    public IRElem(int type, ArrayList<IRSymbol> symbolList) {
+    public IRElem(int type, IRSymbol func, ArrayList<IRSymbol> symbolList) {
         this.type = type;
         this.op1 = null;
         this.op2 = null;
-        this.op3 = null;
+        this.op3 = func;
+        this.symbolList = symbolList;
+    }
+
+    public IRElem(int type, IRSymbol ret, IRSymbol func, ArrayList<IRSymbol> symbolList) {
+        this.type = type;
+        this.op1 = func;
+        this.op2 = null;
+        this.op3 = ret;
         this.symbolList = symbolList;
     }
 
