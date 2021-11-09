@@ -791,7 +791,7 @@ public class SyntaxAnalyzer {
 
                 // 检查有返回值的函数的return情况
                 boolean retErr = true;
-                if (curEnv.getCurFunc() == null || !curEnv.getCurFunc().funcHasReturn()) {
+                if (curEnv.getCurBlockFunc() == null || !curEnv.getCurBlockFunc().funcHasReturn()) {
                     retErr = false;
                 }
                 ArrayList<SyntaxClass> blockSonNodeList = block.getSonNodeList();

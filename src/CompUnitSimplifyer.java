@@ -14,6 +14,17 @@ public class CompUnitSimplifyer {
         this.compUnit = compUnit;
     }
 
+    public static void compUnitSimplify(SyntaxClass compUnit) {
+        ArrayList<SyntaxClass> sonList = compUnit.getSonNodeList();
+        for (SyntaxClass syntaxClass : sonList) {
+            if (syntaxClass.getSyntaxType() == SyntaxClass.DECL) {
+                globalDeclTableFill(syntaxClass);
+            } else {
+                constCal(syntaxClass);
+            }
+        }
+    }
+
     public static void constCal(SyntaxClass curUnit) { // 符号表常量填充+常量折叠
         ArrayList<SyntaxClass> sonList = curUnit.getSonNodeList();
         for (SyntaxClass syntaxClass : sonList) {
@@ -36,7 +47,7 @@ public class CompUnitSimplifyer {
         }
     }
 
-    public static void declTableFill(SyntaxClass decl) {
+    public static void globalDeclTableFill(SyntaxClass decl) {
         SyntaxClass subDecl = decl.getSonNodeList().get(0);
         ArrayList<SyntaxClass> sonList = subDecl.getSonNodeList();
         int sonListLen = sonList.size();
@@ -44,9 +55,67 @@ public class CompUnitSimplifyer {
             for (int i = 2; i < sonListLen - 1; i += 2) { // 最后有分号，长度要减1
                 constDefTableFill(sonList.get(i));
             }
-        } else { // 变量只需要处理数组长度即可
+        } else { // 全局变量
             for (int i = 1; i < sonListLen - 1; i += 2) { // 最后有分号，长度要减1
-                varDefTableFill(sonList.get(i));
+                globalVarDefTableFill(sonList.get(i));
+            }
+        }
+    }
+
+    public static void globalVarDefTableFill(SyntaxClass varDef) {
+        ArrayList<SyntaxClass> sonList = varDef.getSonNodeList();
+        Token ident = (Token) sonList.get(0);
+        VarSymbol identSymbol = (VarSymbol) varDef.getCurEnv().
+                globalLookup(ident.getTokenContext(), 0);
+        if (identSymbol.getDimType() == 0) { // 单独常数
+            if (sonList.size() == 1) { // 默认为0
+                identSymbol.set0DimConstValue(0);
+            } else {
+                SyntaxClass constInitVal = sonList.get(2);
+                SyntaxClass constExp = constInitVal.getSonNodeList().get(0);
+                constExpCal(constExp);
+                identSymbol.set0DimConstValue(constExp.getConstValue());
+            }
+        } else { // 数组
+            SyntaxClass dim1LengthExp = sonList.get(2);
+            constExpCal(dim1LengthExp);
+            int dim1Length = dim1LengthExp.getConstValue();
+            if (identSymbol.getDimType() == 1) { // 一维
+                SyntaxClass constInitVal = sonList.get(5);
+                identSymbol.setDimLengthByDim(0, dim1Length); // 设置长度
+                ArrayList<Integer> constInitValArr;
+                if (sonList.size() == 4) { // 无初始化，全部置0
+                    constInitValArr = new ArrayList<>();
+                    for (int i = 0; i < dim1Length; ++i) {
+                        constInitValArr.add(0);
+                    }
+                } else { // 有初始化
+                    constInitValArr = oneDimConstInitValArr(constInitVal);
+                }
+                identSymbol.set1DimConstValue(constInitValArr, dim1Length);
+            } else { // 二维
+                SyntaxClass dim0LengthExp = sonList.get(5);
+                constExpCal(dim0LengthExp);
+                int dim0Length = dim0LengthExp.getConstValue();
+                identSymbol.setDimLengthByDim(1, dim1Length); // 设置长度
+                identSymbol.setDimLengthByDim(0, dim0Length);
+                SyntaxClass constInitVal = sonList.get(8);
+                ArrayList<ArrayList<Integer>> constInitValArr = new ArrayList<>();
+                if (sonList.size() == 7) {
+                    for (int i = 0; i < dim1Length; ++i) {
+                        ArrayList<Integer> globalInitArr = new ArrayList<>();
+                        for (int j = 0; j < dim0Length; ++j) {
+                            globalInitArr.add(0);
+                        }
+                        constInitValArr.add(globalInitArr);
+                    }
+                } else {
+                    ArrayList<SyntaxClass> initSonList = constInitVal.getSonNodeList();
+                    for (int i = 1; i < initSonList.size() - 1; i += 2) {
+                        constInitValArr.add(oneDimConstInitValArr(initSonList.get(i)));
+                    }
+                }
+                identSymbol.set2DimConstValue(constInitValArr, dim1Length, dim0Length);
             }
         }
     }

@@ -2,6 +2,7 @@ package Symbols;
 
 import Exceptions.DuplicatedDefineIdentException;
 import IR.IRLabelSymbol;
+import IR.IRSymbol;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -13,7 +14,10 @@ public class SymbolTable {
     private boolean cycleBlock;
     private FuncSymbol curFunc;
     private HashMap<VarSymbol, IRLabelSymbol> varRefMap;
+    private HashMap<FuncSymbol, IRLabelSymbol> funcRefMap;
     private ArrayList<VarSymbol> varSymbolList;
+    private IRSymbol cycleStart;
+    private IRSymbol cycleEnd;
 
     public SymbolTable() {
         parent = null;
@@ -22,6 +26,7 @@ public class SymbolTable {
         cycleBlock = false;
         curFunc = null;
         varRefMap = new HashMap<>();
+        funcRefMap = new HashMap<>();
         varSymbolList = new ArrayList<>();
     }
 
@@ -32,11 +37,33 @@ public class SymbolTable {
         cycleBlock = false;
         curFunc = null;
         varRefMap = new HashMap<>();
+        funcRefMap = new HashMap<>();
         varSymbolList = new ArrayList<>();
+    }
+
+    public void setCycleStartEnd(IRSymbol cycleStart, IRSymbol cycleEnd) {
+        this.cycleStart = cycleStart;
+        this.cycleEnd = cycleEnd;
+    }
+
+    public IRSymbol getCycleEnd() {
+        return cycleEnd;
+    }
+
+    public IRSymbol getCycleStart() {
+        return cycleStart;
     }
 
     public void setVarRef(VarSymbol varSymbol, IRLabelSymbol refSymbol) {
         varRefMap.put(varSymbol, refSymbol);
+    }
+
+    public void setFuncRef(FuncSymbol funcSymbol, IRLabelSymbol refSymbol) {
+        funcRefMap.put(funcSymbol, refSymbol);
+    }
+
+    public IRLabelSymbol getFuncRef(FuncSymbol funcSymbol) {
+        return funcRefMap.get(funcSymbol);
     }
 
     public IRLabelSymbol getCurLastRef(VarSymbol varSymbol) {
@@ -88,17 +115,17 @@ public class SymbolTable {
         this.curFunc = curFunc;
     }
 
-    public FuncSymbol getCurFunc() {
+    public FuncSymbol getCurBlockFunc() {
         return curFunc;
     }
 
     public FuncSymbol checkCurFunc() {
         SymbolTable curEnv = this;
-        while (curEnv != null && curEnv.getCurFunc() == null) {
+        while (curEnv != null && curEnv.getCurBlockFunc() == null) {
             curEnv = curEnv.getParent();
         }
         if (curEnv != null) {
-            return curEnv.getCurFunc();
+            return curEnv.getCurBlockFunc();
         } else {
             return null;
         }
@@ -110,7 +137,7 @@ public class SymbolTable {
 
     public boolean isInCycleBlock() {
         SymbolTable curEnv = this;
-        while (curEnv != null && !curEnv.cycleBlock && curEnv.getCurFunc() == null) {
+        while (curEnv != null && !curEnv.cycleBlock && curEnv.getCurBlockFunc() == null) {
             curEnv = curEnv.getParent();
         }
         if (curEnv != null) {

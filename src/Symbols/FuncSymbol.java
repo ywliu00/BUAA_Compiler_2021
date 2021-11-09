@@ -1,5 +1,6 @@
 package Symbols;
 
+import IR.IRSymbol;
 import SyntaxClasses.Token;
 
 import java.util.ArrayList;
@@ -7,11 +8,21 @@ import java.util.ArrayList;
 public class FuncSymbol extends Symbol{
     private boolean hasReturn; // 是否有返回值
     private ArrayList<SymbolType> fParams; // 参数类型列表
+    private IRSymbol returnSymbol;
 
     public FuncSymbol(Token token, boolean hasReturn) {
         super(token, 1);
         this.hasReturn = hasReturn;
         this.fParams = new ArrayList<>();
+        returnSymbol = null;
+    }
+
+    public void setReturnSymbol(IRSymbol returnSymbol) {
+        this.returnSymbol = returnSymbol;
+    }
+
+    public IRSymbol getReturnSymbol() {
+        return returnSymbol;
     }
 
     public boolean funcHasReturn() {

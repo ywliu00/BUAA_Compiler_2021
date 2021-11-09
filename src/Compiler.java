@@ -46,7 +46,7 @@ public class Compiler {
             e.printStackTrace();
         }
         SyntaxClass compUnit = syntaxAnalyzer.getGlobalCompUnit();
-        CompUnitSimplifyer.constCal(compUnit);
+        CompUnitSimplifyer.compUnitSimplify(compUnit);
         //Collections.sort(errorList);
         /*for (Error err : errorList) {
             System.out.println(err);
