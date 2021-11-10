@@ -10,4 +10,9 @@ public class IRFuncSymbol implements IRSymbol{
     public String getFunc() {
         return func;
     }
+
+    @Override
+    public String toString() {
+        return func + "()";
+    }
 }

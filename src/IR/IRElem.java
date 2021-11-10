@@ -130,16 +130,24 @@ public class IRElem {
         } else if (type == ALLOCA) {
             return "ALLOCA " + op3.toString() + " SIZEOF " + op1.toString() + " BYTES";
         } else if (type == GETINT) {
-            return op3.toString()+" = GETINT";
+            return op3.toString() + " = GETINT";
         } else if (type == PRINTS) {
             return "PRINTSTR " + op3;
-        }else if (type == PRINTI) {
+        } else if (type == PRINTI) {
             return "PRINTINT " + op3;
         } else if (type == LABEL) {
             return op3.toString() + ":";
         } else if (type == CALL) {
             StringBuilder params = new StringBuilder();
             params.append(op3.toString()).append(" = CALL ").append(op1.toString());
+            params.append(" PARAMS:");
+            for (IRSymbol symbol : symbolList) {
+                params.append(" ").append(symbol.toString());
+            }
+            return params.toString();
+        } else if (type == FUNC) {
+            StringBuilder params = new StringBuilder();
+            params.append("\nFUNC ").append(op3.toString());
             params.append(" PARAMS:");
             for (IRSymbol symbol : symbolList) {
                 params.append(" ").append(symbol.toString());

@@ -8,6 +8,7 @@ import IR.IRSymbol;
 import Symbols.FuncSymbol;
 import Symbols.SymbolTable;
 import Symbols.VarSymbol;
+import SyntaxClasses.ConstIntToken;
 import SyntaxClasses.FormatStringToken;
 import SyntaxClasses.SyntaxClass;
 import SyntaxClasses.Token;
@@ -124,7 +125,7 @@ public class IRTranslater {
                     iRList.add(initElem);
                 }
             } else if (varSymbol.getDimType() == 2 && sonList.size() > 4 && !isGlobal) { // 局部二维数组初始化
-                SyntaxClass arrInitVal = sonList.get(9);
+                SyntaxClass arrInitVal = sonList.get(8);
                 ArrayList<SyntaxClass> initValListList = arrInitVal.getSonNodeList();
                 for (int i = 0; i < varSymbol.getDimLength(1); ++i) {
                     ArrayList<SyntaxClass> initValList = initValListList.get(2 * i + 1).getSonNodeList();
@@ -290,7 +291,7 @@ public class IRTranslater {
         }
         SyntaxClass subExp = primaryExp.getSonNodeList().get(0);
         if (subExp.getSyntaxType() == SyntaxClass.NUMBER) {
-            return new IRImmSymbol(subExp.getConstValue());
+            return numberTrans(subExp);
         } else if (subExp.getSyntaxType() == SyntaxClass.LVAL) {
             // 此处LVal只会取值不会存值
             IRSymbol lValSymbol = lValTrans(subExp);
@@ -308,6 +309,14 @@ public class IRTranslater {
             subExp = primaryExp.getSonNodeList().get(1);
             return expTrans(subExp);
         }
+    }
+
+    public IRSymbol numberTrans(SyntaxClass number) {
+        if (number.isCalculated()) {
+            return new IRImmSymbol(number.getConstValue());
+        }
+        ConstIntToken subExp = (ConstIntToken) number.getSonNodeList().get(0);
+        return new IRImmSymbol(subExp.getMyValue());
     }
 
     public IRSymbol lValTrans(SyntaxClass lVal) {
@@ -363,7 +372,10 @@ public class IRTranslater {
         SyntaxClass dim1Exp = sonList.get(2);
         IRSymbol dim1Symbol = expTrans(dim1Exp);
         if (identSymbol.getDimType() == 1) { // 一维数组
-            return new IRArrSymbol(baseSymbol, dim1Symbol);
+            IRSymbol trueOffset = iRLabelManager.allocSymbol();
+            IRElem offsetCal = new IRElem(IRElem.MULT, trueOffset, dim1Symbol, new IRImmSymbol(4));
+            iRList.add(offsetCal);
+            return new IRArrSymbol(baseSymbol, trueOffset);
         } else { // 二维数组
             IRSymbol dim1OffSymbol;
             if (dim1Symbol instanceof IRImmSymbol) { // 第1维是常数，直接算
@@ -399,11 +411,14 @@ public class IRTranslater {
             IRSymbol offset;
             if ((dim1OffSymbol instanceof IRImmSymbol) && (dim0Symbol instanceof IRImmSymbol)) {
                 // 两个维度都是常数，直接出结果
-                offset = new IRImmSymbol(((IRImmSymbol) dim1OffSymbol).getValue() +
-                        ((IRImmSymbol) dim0Symbol).getValue());
+                offset = new IRImmSymbol((((IRImmSymbol) dim1OffSymbol).getValue() +
+                        ((IRImmSymbol) dim0Symbol).getValue()) * 4);
             } else {
+                IRSymbol intOffsetCal = iRLabelManager.allocSymbol();
+                IRElem intOffsetCalElem = new IRElem(IRElem.ADD, intOffsetCal, dim1OffSymbol, dim0Symbol);
+                iRList.add(intOffsetCalElem);
                 offset = iRLabelManager.allocSymbol();
-                IRElem offsetCal = new IRElem(IRElem.ADD, offset, dim1OffSymbol, dim0Symbol);
+                IRElem offsetCal = new IRElem(IRElem.MULT, offset, intOffsetCal, new IRImmSymbol(4));
                 iRList.add(offsetCal);
             }
             return new IRArrSymbol(baseSymbol, offset);
@@ -598,8 +613,6 @@ public class IRTranslater {
         FuncSymbol funcSymbol = curEnv.funcGlobalLookup(funcIdent.getTokenContext());
         IRLabelSymbol funcLabelSymbol = iRLabelManager.allocSymbol();
         curEnv.setFuncRef(funcSymbol, funcLabelSymbol); // 保存函数引用信息
-        IRElem funcDefElem = new IRElem(IRElem.LABEL, funcLabelSymbol);
-        iRList.add(funcDefElem); // 插入函数定义标签
         IRSymbol funcRetSymbol = iRLabelManager.allocSymbol(); // 申请函数统一返回出口标签
         funcSymbol.setReturnSymbol(funcRetSymbol); // 设置返回标签
         ArrayList<IRSymbol> fParamSymbols;
@@ -608,8 +621,14 @@ public class IRTranslater {
             fParamSymbols = fParamsTrans(sonList.get(3));
             block = sonList.get(5);
         } else {
+            fParamSymbols = new ArrayList<>();
             block = sonList.get(4);
         }
+        IRSymbol funcIRSymbol = new IRFuncSymbol(funcIdent.getTokenContext());
+        IRElem funcDefElem = new IRElem(IRElem.FUNC, funcIRSymbol, fParamSymbols);
+        iRList.add(funcDefElem);
+        IRElem funcDefLabelElem = new IRElem(IRElem.LABEL, funcLabelSymbol);
+        iRList.add(funcDefLabelElem); // 插入函数定义标签
         blockTrans(block, false);
         IRElem returnLabel = new IRElem(IRElem.LABEL, funcRetSymbol);
         iRList.add(returnLabel);
@@ -625,8 +644,12 @@ public class IRTranslater {
         FuncSymbol funcSymbol = curEnv.funcGlobalLookup(funcIdent.getTokenContext());
         IRLabelSymbol funcLabelSymbol = iRLabelManager.allocSymbol();
         curEnv.setFuncRef(funcSymbol, funcLabelSymbol); // 保存函数引用信息
-        IRElem funcDefElem = new IRElem(IRElem.LABEL, funcLabelSymbol);
-        iRList.add(funcDefElem); // 插入函数定义标签
+        ArrayList<IRSymbol> fParamSymbols = new ArrayList<>();
+        IRSymbol funcIRSymbol = new IRFuncSymbol(funcIdent.getTokenContext());
+        IRElem funcDefElem = new IRElem(IRElem.FUNC, funcIRSymbol, fParamSymbols);
+        iRList.add(funcDefElem);
+        IRElem funcLabelElem = new IRElem(IRElem.LABEL, funcLabelSymbol);
+        iRList.add(funcLabelElem); // 插入函数定义标签
         IRSymbol funcRetSymbol = iRLabelManager.allocSymbol(); // 申请函数统一返回出口标签
         funcSymbol.setReturnSymbol(funcRetSymbol); // 设置返回标签
         SyntaxClass block = sonList.get(4);
@@ -850,7 +873,7 @@ public class IRTranslater {
         }
 
         outStr.append("\n.text\n");
-        for(IRElem irElem : iRList) {
+        for (IRElem irElem : iRList) {
             outStr.append(irElem.toString()).append("\n");
         }
 
