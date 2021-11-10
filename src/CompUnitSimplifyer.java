@@ -41,6 +41,8 @@ public class CompUnitSimplifyer {
                 fParamTableFill(syntaxClass);
             } else if (syntaxClass.getSyntaxType() == SyntaxClass.EXP) {
                 expCal(syntaxClass);
+            } else if (syntaxClass.getSyntaxType() == SyntaxClass.ADDEXP) {
+                addCal(syntaxClass);
             } else {
                 constCal(syntaxClass);
             }
@@ -81,7 +83,6 @@ public class CompUnitSimplifyer {
             constExpCal(dim1LengthExp);
             int dim1Length = dim1LengthExp.getConstValue();
             if (identSymbol.getDimType() == 1) { // 一维
-                SyntaxClass constInitVal = sonList.get(5);
                 identSymbol.setDimLengthByDim(0, dim1Length); // 设置长度
                 ArrayList<Integer> constInitValArr;
                 if (sonList.size() == 4) { // 无初始化，全部置0
@@ -90,6 +91,7 @@ public class CompUnitSimplifyer {
                         constInitValArr.add(0);
                     }
                 } else { // 有初始化
+                    SyntaxClass constInitVal = sonList.get(5);
                     constInitValArr = oneDimConstInitValArr(constInitVal);
                 }
                 identSymbol.set1DimConstValue(constInitValArr, dim1Length);

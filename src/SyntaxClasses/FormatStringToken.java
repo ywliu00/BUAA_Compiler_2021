@@ -28,9 +28,10 @@ public class FormatStringToken extends Token {
     }
 
     private int stringPartition() {
-        String strContext = this.getTokenContext().substring(
-                1, this.getTokenContext().length() - 1);
+        String strContext = this.getTokenContext();
         String[] strList = strContext.split("%d");
+        strList[0] = strList[0].substring(1);
+        strList[strList.length - 1] = strList[strList.length - 1].substring(0, strList[strList.length - 1].length() - 1);
         rawStrList.addAll(Arrays.asList(strList));
         return strList.length - 1;
     }

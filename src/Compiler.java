@@ -21,7 +21,7 @@ public class Compiler {
         }
         System.setOut(ps);
 
-        ReadFile readFile = new ReadFile("testfile_3.txt");
+        ReadFile readFile = new ReadFile("testfile_2.txt");
         LexicalAnalyzer lexicalAnalyzer = new LexicalAnalyzer();
         SyntaxAnalyzer syntaxAnalyzer = new SyntaxAnalyzer();
         ArrayList<Error> errorList = new ArrayList<>();
@@ -47,12 +47,17 @@ public class Compiler {
         }
         SyntaxClass compUnit = syntaxAnalyzer.getGlobalCompUnit();
         CompUnitSimplifyer.compUnitSimplify(compUnit);
+
+        IRTranslater irTranslater = new IRTranslater(compUnit);
+        irTranslater.compUnitTrans();
+        StringBuilder irStr = irTranslater.outputIR();
+        System.out.println(irStr);
         //Collections.sort(errorList);
         /*for (Error err : errorList) {
             System.out.println(err);
         }*/
-        StringBuilder afterStrBuilder = CompUnitSimplifyer.printUnit(compUnit);
-        System.out.println(afterStrBuilder);
+        /*StringBuilder afterStrBuilder = CompUnitSimplifyer.printUnit(compUnit);
+        System.out.println(afterStrBuilder);*/
         // System.out.println(compUnit);
     }
 }

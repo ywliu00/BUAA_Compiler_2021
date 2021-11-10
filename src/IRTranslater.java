@@ -29,6 +29,7 @@ public class IRTranslater {
     public IRTranslater(SyntaxClass compUnit) {
         this.compUnit = compUnit;
         constantArrMap = new HashMap<>();
+        globalArrMap = new HashMap<>();
         formatStrMap = new HashMap<>();
         iRList = new LinkedList<>();
         globalVarID = 0;
@@ -419,6 +420,9 @@ public class IRTranslater {
             return lAndExpTrans(sonList.get(0));
         }
         // LOr -> LOr || LAnd
+        IRSymbol end0 = iRLabelManager.allocSymbol();
+        IRSymbol end1 = iRLabelManager.allocSymbol();
+        IRSymbol endAll = iRLabelManager.allocSymbol();
         IRSymbol orResSymbol = lOrExpTrans(sonList.get(0));
         if (orResSymbol instanceof IRImmSymbol) { // 第一部分是常数
             if (((IRImmSymbol) orResSymbol).getValue() == 0) {
@@ -427,18 +431,47 @@ public class IRTranslater {
                 return orResSymbol;
             }
         }
+        /* 短路求值操作：
+        LOr
+        BNZ(End1)
+        LAnd
+        BNZ(End1)
+        #mark = 0
+        BR EndAll
+        End1:
+        #mark = 1
+        EndAll:
+        * */
+
+        IRElem lOrResTrue = new IRElem(IRElem.BNZ, end1, orResSymbol);
+        iRList.add(lOrResTrue);
+
         IRSymbol andResSymbol = lAndExpTrans(sonList.get(2));
-        if (andResSymbol instanceof IRImmSymbol) { // 第二部分是常数
+        IRElem lAndResTrue = new IRElem(IRElem.BNZ, end1, andResSymbol);
+        iRList.add(lAndResTrue);
+
+        IRSymbol resSymbol = iRLabelManager.allocSymbol();
+        IRElem resAssign0 = new IRElem(IRElem.ASSIGN, resSymbol, IRImmSymbol.ZERO);
+        iRList.add(resAssign0);
+        IRElem endAllElem = new IRElem(IRElem.BR, endAll);
+        iRList.add(endAllElem);
+
+        IRElem end1Label = new IRElem(IRElem.LABEL, end1);
+        iRList.add(end1Label);
+        IRElem resAssign1 = new IRElem(IRElem.ASSIGN, resSymbol, new IRImmSymbol(1));
+        iRList.add(resAssign1);
+        IRElem endAllLabel = new IRElem(IRElem.LABEL, endAll);
+        iRList.add(endAllLabel);
+        /*if (andResSymbol instanceof IRImmSymbol) { // 第二部分是常数
             if (((IRImmSymbol) andResSymbol).getValue() == 0) {
                 return orResSymbol;
             } else {
                 return andResSymbol;
             }
-        }
+        }*/
         // 都不是常数
-        IRSymbol resSymbol = iRLabelManager.allocSymbol();
-        IRElem lOrElem = new IRElem(IRElem.OR, resSymbol, orResSymbol, andResSymbol);
-        iRList.add(lOrElem);
+        //IRElem lOrElem = new IRElem(IRElem.OR, resSymbol, orResSymbol, andResSymbol);
+        //iRList.add(lOrElem);
         return resSymbol;
     }
 
@@ -448,6 +481,9 @@ public class IRTranslater {
             return eqExpTrans(sonList.get(0));
         }
         // LAnd -> LAnd && Eq
+        IRSymbol end0 = iRLabelManager.allocSymbol();
+        IRSymbol end1 = iRLabelManager.allocSymbol();
+        IRSymbol endAll = iRLabelManager.allocSymbol();
         IRSymbol andResSymbol = lAndExpTrans(sonList.get(0));
         if (andResSymbol instanceof IRImmSymbol) { // 第一部分是常数
             if (((IRImmSymbol) andResSymbol).getValue() != 0) {
@@ -456,18 +492,46 @@ public class IRTranslater {
                 return andResSymbol;
             }
         }
+        /* 短路求值操作：
+        LAnd
+        BZ(End0)
+        Eq
+        BZ(End0)
+        #mark = 1
+        BR ENDALL
+        End0:
+        #mark = 0
+        ENDALL:
+        * */
+        IRElem lAndFalse = new IRElem(IRElem.BZ, end0, andResSymbol);
+        iRList.add(lAndFalse);
+
         IRSymbol eqResSymbol = eqExpTrans(sonList.get(2));
-        if (eqResSymbol instanceof IRImmSymbol) { // 第二部分是常数
+        IRElem eqFalse = new IRElem(IRElem.BZ, end0, eqResSymbol);
+        iRList.add(eqFalse);
+
+        IRSymbol resSymbol = iRLabelManager.allocSymbol();
+        IRElem resAssign1 = new IRElem(IRElem.ASSIGN, resSymbol, new IRImmSymbol(1));
+        iRList.add(resAssign1);
+        IRElem endAllElem = new IRElem(IRElem.BR, endAll);
+        iRList.add(endAllElem);
+
+        IRElem end0Label = new IRElem(IRElem.LABEL, end0);
+        iRList.add(end0Label);
+        IRElem resAssign0 = new IRElem(IRElem.ASSIGN, resSymbol, IRImmSymbol.ZERO);
+        iRList.add(resAssign0);
+        IRElem endAllLabel = new IRElem(IRElem.LABEL, endAll);
+        iRList.add(endAllLabel);
+        /*if (eqResSymbol instanceof IRImmSymbol) { // 第二部分是常数
             if (((IRImmSymbol) eqResSymbol).getValue() != 0) {
                 return andResSymbol;
             } else {
                 return eqResSymbol;
             }
-        }
+        }*/
         // 都不是常数
-        IRSymbol resSymbol = iRLabelManager.allocSymbol();
-        IRElem lAndElem = new IRElem(IRElem.AND, resSymbol, andResSymbol, eqResSymbol);
-        iRList.add(lAndElem);
+        //IRElem lAndElem = new IRElem(IRElem.AND, resSymbol, andResSymbol, eqResSymbol);
+        //iRList.add(lAndElem);
         return resSymbol;
     }
 
@@ -495,7 +559,7 @@ public class IRTranslater {
         ArrayList<SyntaxClass> sonList = relExp.getSonNodeList();
         if (sonList.size() == 1) { // Rel -> Add
             IRSymbol addSymbol = addExpTrans(sonList.get(0));
-            if (addSymbol instanceof IRImmSymbol) { // Add为常数，则直接判0返回
+            /*if (addSymbol instanceof IRImmSymbol) { // Add为常数，则直接判0返回
                 if (((IRImmSymbol) addSymbol).getValue() == 0) {
                     return addSymbol;
                 } else {
@@ -505,8 +569,8 @@ public class IRTranslater {
             // Add非常数，则执行判0指令
             IRSymbol resSymbol = iRLabelManager.allocSymbol();
             IRElem relElem = new IRElem(IRElem.NEQ, resSymbol, addSymbol, IRImmSymbol.ZERO); // 用 NEQ 0 判断是否非0
-            iRList.add(relElem);
-            return resSymbol;
+            iRList.add(relElem);*/
+            return addSymbol;
         }
         // Rel -> Rel <symbol> Add
         IRSymbol relResSymbol = relExpTrans(sonList.get(0));
@@ -695,21 +759,25 @@ public class IRTranslater {
             } else if (firstItemToken.getTokenType() == Token.WHILETK) { // while (cond) stmt
                 IRSymbol startWhile = iRLabelManager.allocSymbol();
                 IRSymbol endWhile = iRLabelManager.allocSymbol();
-                curEnv.setCycleStartEnd(startWhile, endWhile);
+                //curEnv.setCycleStartEnd(startWhile, endWhile);
+                SyntaxClass whileStmt = sonList.get(4);
+                whileStmt.getCurEnv().setCycleStartEnd(startWhile, endWhile);
                 IRElem startLabelElem = new IRElem(IRElem.LABEL, startWhile);
                 iRList.add(startLabelElem);
                 IRSymbol condRes = condTrans(sonList.get(2));
                 IRElem condJudge = new IRElem(IRElem.BZ, endWhile, condRes);
                 iRList.add(condJudge);
-                stmtTrans(sonList.get(4), true);
+                stmtTrans(whileStmt, true);
+                IRElem backToStartElem = new IRElem(IRElem.BR, startWhile);
+                iRList.add(backToStartElem);
                 IRElem endLabelElem = new IRElem(IRElem.LABEL, endWhile);
                 iRList.add(endLabelElem);
             } else if (firstItemToken.getTokenType() == Token.BREAKTK) { // break
-                IRSymbol endWhile = curEnv.getCycleEnd();
+                IRSymbol endWhile = curEnv.findCycleEnd();
                 IRElem breakElem = new IRElem(IRElem.BR, endWhile);
                 iRList.add(breakElem);
             } else if (firstItemToken.getTokenType() == Token.CONTINUETK) { // continue
-                IRSymbol startWhile = curEnv.getCycleStart();
+                IRSymbol startWhile = curEnv.findCycleStart();
                 IRElem continueElem = new IRElem(IRElem.BR, startWhile);
                 iRList.add(continueElem);
             } else if (firstItemToken.getTokenType() == Token.RETURNTK) { // return
@@ -730,7 +798,7 @@ public class IRTranslater {
                     paramSymbolList.add(expTrans(sonList.get(i)));
                 }
                 ArrayList<String> rawStrList = formatStr.getRawStrList();
-                int i = 0;
+                int i;
                 for (i = 0; i < formatStr.getFormatCharNum(); ++i) {
                     IRLabelSymbol rawStrLabel = iRLabelManager.allocSymbol();
                     formatStrMap.put(rawStrLabel.getId(), rawStrList.get(i));
@@ -762,7 +830,7 @@ public class IRTranslater {
             outStr.append(constArr.get(i)).append("\n");
         }
         for (VarSymbol globalVarSymbol : globalArrMap.keySet()) {
-            int constID = constantArrMap.get(globalVarSymbol);
+            int constID = globalArrMap.get(globalVarSymbol);
             IRSymbol constSymbol = iRLabelManager.getSymbolById(constID);
             outStr.append(".align 2\n");
             outStr.append(constSymbol.toString()).append(":\n.word ");
@@ -781,7 +849,7 @@ public class IRTranslater {
             outStr.append("\"").append(rawStr).append("\"\n");
         }
 
-        outStr.append(".text\n");
+        outStr.append("\n.text\n");
         for(IRElem irElem : iRList) {
             outStr.append(irElem.toString()).append("\n");
         }

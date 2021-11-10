@@ -8,7 +8,7 @@ public class IRElem {
             EQL = 11, NEQ = 12, BR = 13, BZ = 14, CALL = 15, RET = 16,
             EXIT = 17, LOAD = 18, STORE = 19, ALLOCA = 20, GETINT = 21,
             PRINTS = 22, FUNC = 23, LABEL = 24, AND = 25, OR = 26, SETRET = 27,
-            PRINTI = 28;
+            PRINTI = 28, BNZ = 29;
     private int type;
     private IRSymbol op1;
     private IRSymbol op2;
@@ -114,7 +114,9 @@ public class IRElem {
         } else if (type == BR) {
             return "BR " + op3.toString();
         } else if (type == BZ) {
-            return "BZ " + op3.toString() + " IF ZERO " + op1.toString();
+            return "BZ " + op3.toString() + " IF " + op1.toString() + " ZERO";
+        } else if (type == BNZ) {
+            return "BZ " + op3.toString() + " IF " + op1.toString() + " NOT ZERO";
         } else if (type == SETRET) {
             return "SETRET " + op3.toString();
         } else if (type == RET) {

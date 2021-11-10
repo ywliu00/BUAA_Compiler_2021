@@ -46,12 +46,34 @@ public class SymbolTable {
         this.cycleEnd = cycleEnd;
     }
 
-    public IRSymbol getCycleEnd() {
+    public IRSymbol getCurCycleStart() {
+        return cycleStart;
+    }
+
+    public IRSymbol getCurCycleEnd() {
         return cycleEnd;
     }
 
-    public IRSymbol getCycleStart() {
-        return cycleStart;
+    public IRSymbol findCycleEnd() {
+        SymbolTable curTable = this;
+        while (curTable != null) {
+            if (curTable.getCurCycleEnd() != null) {
+                return curTable.getCurCycleEnd();
+            }
+            curTable = curTable.getParent();
+        }
+        return null;
+    }
+
+    public IRSymbol findCycleStart() {
+        SymbolTable curTable = this;
+        while (curTable != null) {
+            if (curTable.getCurCycleStart() != null) {
+                return curTable.getCurCycleStart();
+            }
+            curTable = curTable.getParent();
+        }
+        return null;
     }
 
     public void setVarRef(VarSymbol varSymbol, IRLabelSymbol refSymbol) {
@@ -84,7 +106,7 @@ public class SymbolTable {
 
     public VarSymbol varLocalLookup(String name, int curListPos) {
         for (int i = curListPos - 1; i >= 0; --i) {
-            if (varSymbolList.get(i).getName() == name) {
+            if (varSymbolList.get(i).getName().equals(name)) {
                 return varSymbolList.get(i);
             }
         }
