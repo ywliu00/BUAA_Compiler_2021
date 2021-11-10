@@ -20,24 +20,41 @@ public class IRTranslater {
     private SyntaxClass compUnit;
     private HashMap<VarSymbol, Integer> constantArrMap; // 常量数组无法消干净
     private HashMap<VarSymbol, Integer> globalArrMap; // 全局数组
-    private ArrayList<FormatStringToken> formatStrArr; // 格式字符串作常量存
+    private HashMap<Integer, String> formatStrMap; // 格式字符串作常量存
     private LinkedList<IRElem> iRList;
-    int globalVarID;
-    IRLabelManager iRLabelManager;
+    private int globalVarID;
+    private IRLabelManager iRLabelManager;
+    private IRSymbol mainFunc;
 
     public IRTranslater(SyntaxClass compUnit) {
         this.compUnit = compUnit;
         constantArrMap = new HashMap<>();
-        formatStrArr = new ArrayList<>();
+        formatStrMap = new HashMap<>();
         iRList = new LinkedList<>();
         globalVarID = 0;
         iRLabelManager = IRLabelManager.getIRLabelManager();
+        mainFunc = null;
     }
 
     public void constDeclTrans(SyntaxClass constDecl) {
         ArrayList<SyntaxClass> sonList = constDecl.getSonNodeList();
         for (int i = 2; i < sonList.size() - 1; i += 2) {
             constDefTrans(sonList.get(i));
+        }
+    }
+
+    public void compUnitTrans() {
+        ArrayList<SyntaxClass> sonList = compUnit.getSonNodeList();
+        for (SyntaxClass syntaxClass : sonList) {
+            if (syntaxClass.getSyntaxType() == SyntaxClass.DECL) {
+                declTrans(syntaxClass, true);
+            } else if (syntaxClass.getSyntaxType() == SyntaxClass.FUNCDEF) {
+                funcDefTrans(syntaxClass);
+            } else {
+                mainFunc = mainFuncDefTrans(syntaxClass);
+                IRElem progEnter = new IRElem(IRElem.BR, mainFunc);
+                iRList.addFirst(progEnter);
+            }
         }
     }
 
@@ -537,6 +554,26 @@ public class IRTranslater {
         return funcLabelSymbol;
     }
 
+    public IRSymbol mainFuncDefTrans(SyntaxClass funcDef) {
+        ArrayList<SyntaxClass> sonList = funcDef.getSonNodeList();
+        Token funcIdent = (Token) sonList.get(1);
+        SymbolTable curEnv = funcDef.getCurEnv();
+        FuncSymbol funcSymbol = curEnv.funcGlobalLookup(funcIdent.getTokenContext());
+        IRLabelSymbol funcLabelSymbol = iRLabelManager.allocSymbol();
+        curEnv.setFuncRef(funcSymbol, funcLabelSymbol); // 保存函数引用信息
+        IRElem funcDefElem = new IRElem(IRElem.LABEL, funcLabelSymbol);
+        iRList.add(funcDefElem); // 插入函数定义标签
+        IRSymbol funcRetSymbol = iRLabelManager.allocSymbol(); // 申请函数统一返回出口标签
+        funcSymbol.setReturnSymbol(funcRetSymbol); // 设置返回标签
+        SyntaxClass block = sonList.get(4);
+        blockTrans(block, false);
+        IRElem returnLabel = new IRElem(IRElem.LABEL, funcRetSymbol);
+        iRList.add(returnLabel);
+        IRElem mainReturnElem = new IRElem(IRElem.EXIT);
+        iRList.add(mainReturnElem);
+        return funcLabelSymbol;
+    }
+
     public ArrayList<IRSymbol> fParamsTrans(SyntaxClass funcFParams) {
         ArrayList<SyntaxClass> sonList = funcFParams.getSonNodeList();
         ArrayList<IRSymbol> symbolList = new ArrayList<>();
@@ -688,8 +725,67 @@ public class IRTranslater {
                 iRList.add(retElem);
             } else if (firstItemToken.getTokenType() == Token.PRINTFTK) { // printf
                 FormatStringToken formatStr = (FormatStringToken) sonList.get(2);
-                // TODO: printf
+                ArrayList<IRSymbol> paramSymbolList = new ArrayList<>();
+                for (int i = 4; i < sonList.size() - 2; i += 2) {
+                    paramSymbolList.add(expTrans(sonList.get(i)));
+                }
+                ArrayList<String> rawStrList = formatStr.getRawStrList();
+                int i = 0;
+                for (i = 0; i < formatStr.getFormatCharNum(); ++i) {
+                    IRLabelSymbol rawStrLabel = iRLabelManager.allocSymbol();
+                    formatStrMap.put(rawStrLabel.getId(), rawStrList.get(i));
+                    IRElem printStr = new IRElem(IRElem.PRINTS, rawStrLabel);
+                    iRList.add(printStr);
+                    IRElem printInt = new IRElem(IRElem.PRINTI, paramSymbolList.get(i));
+                    iRList.add(printInt);
+                }
+                IRLabelSymbol rawStrLabel = iRLabelManager.allocSymbol();
+                formatStrMap.put(rawStrLabel.getId(), rawStrList.get(i));
+                IRElem printStr = new IRElem(IRElem.PRINTS, rawStrLabel);
+                iRList.add(printStr);
             }
         }
+    }
+
+    public StringBuilder outputIR() {
+        StringBuilder outStr = new StringBuilder(".data\n");
+        for (VarSymbol constVarSymbol : constantArrMap.keySet()) {
+            int constID = constantArrMap.get(constVarSymbol);
+            IRSymbol constSymbol = iRLabelManager.getSymbolById(constID);
+            outStr.append(".align 2\n");
+            outStr.append(constSymbol.toString()).append(":\n.word ");
+            ArrayList<Integer> constArr = constVarSymbol.constGetAllValue();
+            int i;
+            for (i = 0; i < constArr.size() - 1; ++i) {
+                outStr.append(constArr.get(i)).append(", ");
+            }
+            outStr.append(constArr.get(i)).append("\n");
+        }
+        for (VarSymbol globalVarSymbol : globalArrMap.keySet()) {
+            int constID = constantArrMap.get(globalVarSymbol);
+            IRSymbol constSymbol = iRLabelManager.getSymbolById(constID);
+            outStr.append(".align 2\n");
+            outStr.append(constSymbol.toString()).append(":\n.word ");
+            ArrayList<Integer> constArr = globalVarSymbol.constGetAllValue();
+            int i;
+            for (i = 0; i < constArr.size() - 1; ++i) {
+                outStr.append(constArr.get(i)).append(", ");
+            }
+            outStr.append(constArr.get(i)).append("\n");
+        }
+        for (int rawStrID : formatStrMap.keySet()) {
+            IRSymbol strSymbol = iRLabelManager.getSymbolById(rawStrID);
+            outStr.append(".align 2\n");
+            outStr.append(strSymbol.toString()).append(":\n.asciiz ");
+            String rawStr = formatStrMap.get(rawStrID);
+            outStr.append("\"").append(rawStr).append("\"\n");
+        }
+
+        outStr.append(".text\n");
+        for(IRElem irElem : iRList) {
+            outStr.append(irElem.toString()).append("\n");
+        }
+
+        return outStr;
     }
 }

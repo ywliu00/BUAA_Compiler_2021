@@ -82,4 +82,69 @@ public class IRElem {
     public ArrayList<IRSymbol> getSymbolList() {
         return symbolList;
     }
+
+    @Override
+    public String toString() {
+        if (type == ADD) {
+            return op3.toString() + " = " + op1.toString() + " + " + op2.toString();
+        } else if (type == MINU) {
+            return op3.toString() + " = " + op1.toString() + " - " + op2.toString();
+        } else if (type == MULT) {
+            return op3.toString() + " = " + op1.toString() + " * " + op2.toString();
+        } else if (type == DIV) {
+            return op3.toString() + " = " + op1.toString() + " / " + op2.toString();
+        } else if (type == ASSIGN) {
+            return op3.toString() + " = " + op1.toString();
+        } else if (type == GRE) {
+            return op3.toString() + " = " + op1.toString() + " > " + op2.toString();
+        } else if (type == GEQ) {
+            return op3.toString() + " = " + op1.toString() + " >= " + op2.toString();
+        } else if (type == LSS) {
+            return op3.toString() + " = " + op1.toString() + " < " + op2.toString();
+        } else if (type == LEQ) {
+            return op3.toString() + " = " + op1.toString() + " <= " + op2.toString();
+        } else if (type == EQL) {
+            return op3.toString() + " = " + op1.toString() + " == " + op2.toString();
+        } else if (type == NEQ) {
+            return op3.toString() + " = " + op1.toString() + " != " + op2.toString();
+        } else if (type == AND) {
+            return op3.toString() + " = " + op1.toString() + " && " + op2.toString();
+        } else if (type == OR) {
+            return op3.toString() + " = " + op1.toString() + " || " + op2.toString();
+        } else if (type == BR) {
+            return "BR " + op3.toString();
+        } else if (type == BZ) {
+            return "BZ " + op3.toString() + " IF ZERO " + op1.toString();
+        } else if (type == SETRET) {
+            return "SETRET " + op3.toString();
+        } else if (type == RET) {
+            return "RET";
+        } else if (type == EXIT) {
+            return "EXIT";
+        } else if (type == LOAD) {
+            return "LOAD " + op3.toString() + " FROM BASE " + op1.toString() + " OFFSET " + op2.toString();
+        } else if (type == STORE) {
+            return "STORE " + op3.toString() + " TO BASE " + op1.toString() + " OFFSET " + op2.toString();
+        } else if (type == ALLOCA) {
+            return "ALLOCA " + op3.toString() + " SIZEOF " + op1.toString() + " BYTES";
+        } else if (type == GETINT) {
+            return op3.toString()+" = GETINT";
+        } else if (type == PRINTS) {
+            return "PRINTSTR " + op3;
+        }else if (type == PRINTI) {
+            return "PRINTINT " + op3;
+        } else if (type == LABEL) {
+            return op3.toString() + ":";
+        } else if (type == CALL) {
+            StringBuilder params = new StringBuilder();
+            params.append(op3.toString()).append(" = CALL ").append(op1.toString());
+            params.append(" PARAMS:");
+            for (IRSymbol symbol : symbolList) {
+                params.append(" ").append(symbol.toString());
+            }
+            return params.toString();
+        } else {
+            return "你在演我";
+        }
+    }
 }

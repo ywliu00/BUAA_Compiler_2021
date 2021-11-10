@@ -3,6 +3,7 @@ package Symbols;
 import SyntaxClasses.Token;
 
 import java.util.ArrayList;
+import java.util.Collections;
 
 public class VarSymbol extends Symbol {
     /*
@@ -81,5 +82,23 @@ public class VarSymbol extends Symbol {
 
     public int constGetValue(int dim1, int dim0) {
         return constValue[dim1][dim0];
+    }
+
+    public ArrayList<Integer> constGetAllValue() {
+        ArrayList<Integer> retArr = new ArrayList<>();
+        if (varType.getDimType() == 0) {
+            retArr.add(constValue[0][0]);
+        } else if (varType.getDimType() == 1) {
+            for (int i = 0; i < dimLength[0]; ++i) {
+                retArr.add(constValue[0][i]);
+            }
+        } else {
+            for (int i = 0; i < dimLength[1]; ++i) {
+                for (int j = 0; j < dimLength[0]; ++j) {
+                    retArr.add(constValue[i][j]);
+                }
+            }
+        }
+        return retArr;
     }
 }
