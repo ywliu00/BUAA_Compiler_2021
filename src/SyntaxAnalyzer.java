@@ -748,7 +748,6 @@ public class SyntaxAnalyzer {
             Error duplicatedDefinedError = new Error(1, fParamToken.getLineNo());
             errorList.add(duplicatedDefinedError);
         }
-        // TODO: 二维数组的第一维长度
         return funcFParam;
     }
 

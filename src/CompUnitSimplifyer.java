@@ -71,12 +71,12 @@ public class CompUnitSimplifyer {
                 globalLookup(ident.getTokenContext(), 0);
         if (identSymbol.getDimType() == 0) { // 单独常数
             if (sonList.size() == 1) { // 默认为0
-                identSymbol.set0DimConstValue(0);
+                identSymbol.set0DimVarValue(0);
             } else {
                 SyntaxClass constInitVal = sonList.get(2);
                 SyntaxClass constExp = constInitVal.getSonNodeList().get(0);
                 constExpCal(constExp);
-                identSymbol.set0DimConstValue(constExp.getConstValue());
+                identSymbol.set0DimVarValue(constExp.getConstValue());
             }
         } else { // 数组
             SyntaxClass dim1LengthExp = sonList.get(2);
@@ -94,7 +94,7 @@ public class CompUnitSimplifyer {
                     SyntaxClass constInitVal = sonList.get(5);
                     constInitValArr = oneDimConstInitValArr(constInitVal);
                 }
-                identSymbol.set1DimConstValue(constInitValArr, dim1Length);
+                identSymbol.set1DimVarValue(constInitValArr, dim1Length);
             } else { // 二维
                 SyntaxClass dim0LengthExp = sonList.get(5);
                 constExpCal(dim0LengthExp);
@@ -117,7 +117,7 @@ public class CompUnitSimplifyer {
                         constInitValArr.add(oneDimConstInitValArr(initSonList.get(i)));
                     }
                 }
-                identSymbol.set2DimConstValue(constInitValArr, dim1Length, dim0Length);
+                identSymbol.set2DimVarValue(constInitValArr, dim1Length, dim0Length);
             }
         }
     }

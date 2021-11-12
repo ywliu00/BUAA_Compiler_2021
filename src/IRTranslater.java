@@ -118,18 +118,20 @@ public class IRTranslater {
             if (sonList.size() > 1) { // 有初始化
                 IRSymbol initValSymbol = singleInitValTrans(sonList.get(2)); // 初始值算出来赋值到一个临时变量上
                 IRLabelSymbol varIRLabel = iRLabelManager.allocSymbol(); // 给新定义的变量申请符号
-                if (isGlobal) {
-                    varIRLabel.setGlobal(true);
-                }
                 curEnv.setVarRef(varSymbol, varIRLabel); // 设置引用
-                IRElem varInitIRElem = new IRElem(IRElem.ASSIGN, varIRLabel, initValSymbol); // 赋值
-                iRList.add(varInitIRElem);
+                if (isGlobal) {
+                    globalArrMap.put(varSymbol, varIRLabel);
+
+                    varIRLabel.setGlobal(true);
+                } else {
+                    IRElem varInitIRElem = new IRElem(IRElem.ASSIGN, varIRLabel, initValSymbol); // 赋值
+                    iRList.add(varInitIRElem);
+                }
             } else if (isGlobal) { // 全局变量，无初始化，需置0
                 IRLabelSymbol varIRSymbol = iRLabelManager.allocSymbol(); // 申请符号
                 varIRSymbol.setGlobal(true);
                 curEnv.setVarRef(varSymbol, varIRSymbol);
-                IRElem globalInitElem = new IRElem(IRElem.ASSIGN, varIRSymbol, IRImmSymbol.ZERO);
-                iRList.add(globalInitElem);
+                globalArrMap.put(varSymbol, varIRSymbol);
             }
         } else { // 定义数组时申请空间
             int memSize = 0;
@@ -302,15 +304,14 @@ public class IRTranslater {
         SymbolTable curEnv = funcCallUnaryExp.getCurEnv();
         FuncSymbol funcSymbol = curEnv.funcGlobalLookup(funcIdent.getTokenContext());
         SyntaxClass funcRParams = funcCallList.get(2);
-        LinkedList<IRSymbol> paramLinkedList = new LinkedList<>();
-        if (funcRParams.getSyntaxType() == SyntaxClass.FUNCRPARAMS) { // 从右往左计算各参数
+        ArrayList<IRSymbol> paramList = new ArrayList<>();
+        if (funcRParams.getSyntaxType() == SyntaxClass.FUNCRPARAMS) { // 从左往右计算各参数
             ArrayList<SyntaxClass> realParamList = funcRParams.getSonNodeList();
-            for (int i = realParamList.size() - 1; i >= 0; i -= 2) {
+            for (int i = 0; i < realParamList.size(); i += 2) {
                 IRSymbol paramSymbol = expTrans(realParamList.get(i));
-                paramLinkedList.addFirst(paramSymbol);
+                paramList.add(paramSymbol);
             }
         }
-        ArrayList<IRSymbol> paramList = new ArrayList<>(paramLinkedList);
         IRSymbol funcIRSymbol = funcMap.get(funcIdent.getTokenContext());
         IRSymbol retSymbol = iRLabelManager.allocSymbol();
         IRElem funcCalling = new IRElem(IRElem.CALL, retSymbol, funcIRSymbol, paramList);
@@ -378,9 +379,11 @@ public class IRTranslater {
         VarSymbol identSymbol = curEnv.varGlobalLookup(
                 identToken.getTokenContext(), lVal.getCurVarListPos());
         if (identSymbol.isVar()) {
-            IRSymbol lValVarSymbol = curEnv.getLastVarRef(identSymbol);
+            IRLabelSymbol lValVarSymbol = curEnv.getLastVarRef(identSymbol);
             if (lValVarSymbol == null) {
                 lValVarSymbol = iRLabelManager.allocSymbol();
+            } else if( lValVarSymbol.isGlobal()){ // 全局变量，视作数组
+                return new IRArrSymbol(lValVarSymbol, IRImmSymbol.ZERO);
             }
             return lValVarSymbol;
         } else {

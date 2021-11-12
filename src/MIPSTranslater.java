@@ -21,8 +21,10 @@ public class MIPSTranslater {
     private IRLabelManager iRLabelManager;
     private IRSymbol mainFunc;
     private HashMap<IRSymbol, Integer> iRAddrMap; //
-    private HashSet<IRSymbol> labelSet;
+    private HashSet<IRSymbol> globalLabelSet; // 全局标签集合
     private int curPos;
+    private HashMap<String, FunctionTemplate> functionTemplateTable;
+    private FunctionTemplate curFunc;
 
     public MIPSTranslater(IRTranslater irTranslater) {
         this.compUnit = irTranslater.getCompUnit();
@@ -32,14 +34,65 @@ public class MIPSTranslater {
         this.iRList = irTranslater.getIRList();
         this.iRLabelManager = IRLabelManager.getIRLabelManager();
         this.mainFunc = irTranslater.getMainFunc();
-        this.labelSet = new HashSet<>();
+        this.globalLabelSet = new HashSet<>();
+        this.functionTemplateTable = new HashMap<>();
 
         this.iRAddrMap = new HashMap<>();
         this.curPos = 0;
+        this.curFunc = FunctionTemplate.GLOBAL;
 
-        this.labelSet.addAll(formatStrMap.keySet());
-        this.labelSet.addAll(constantArrMap.values());
-        this.labelSet.addAll(globalArrMap.values());
+        this.globalLabelSet.addAll(formatStrMap.keySet());
+        this.globalLabelSet.addAll(constantArrMap.values());
+        this.globalLabelSet.addAll(globalArrMap.values());
+    }
+
+    public void buildFunctionTemplate() {
+        for (IRElem inst : iRList) {
+            if (inst.getType() == IRElem.FUNC) {
+                FunctionTemplate newFuncTempl = new FunctionTemplate((IRFuncSymbol) inst.getOp3());
+                functionTemplateTable.put(newFuncTempl.getFuncName(), newFuncTempl);
+                this.curFunc = newFuncTempl;
+            } else if (inst.getType() == IRElem.RET || inst.getType() == IRElem.EXIT) {
+                this.curFunc = FunctionTemplate.GLOBAL;
+            } else if (inst.getType() == IRElem.ADD || inst.getType() == IRElem.MINU ||
+                    inst.getType() == IRElem.MULT || inst.getType() == IRElem.DIV ||
+                    inst.getType() == IRElem.LSHIFT || inst.getType() == IRElem.RSHIFT ||
+                    inst.getType() == IRElem.GRE || inst.getType() == IRElem.GEQ ||
+                    inst.getType() == IRElem.LSS || inst.getType() == IRElem.LEQ ||
+                    inst.getType() == IRElem.EQL || inst.getType() == IRElem.NEQ ||
+                    inst.getType() == IRElem.LOAD || inst.getType() == IRElem.STORE) { // 算术指令
+                checkSymbol(inst.getOp3());
+                checkSymbol(inst.getOp1());
+                checkSymbol(inst.getOp2());
+            } else if (inst.getType() == IRElem.ASSIGN) { // assign指令
+                checkSymbol(inst.getOp3());
+                checkSymbol(inst.getOp1());
+            } else if (inst.getType() == IRElem.ALLOCA) { // alloca指令
+                checkSymbol(inst.getOp3());
+                int size = ((IRImmSymbol) inst.getOp1()).getValue(); // 这里已经是字节数了
+                curFunc.alloca(round(size)); // 按4字节取整
+            } else if (inst.getType() == IRElem.BZ || inst.getType() == IRElem.BNZ) {
+                checkSymbol(inst.getOp1());
+            } else if (inst.getType() == IRElem.SETRET) {
+                checkSymbol(inst.getOp3());
+            } else if (inst.getType() == IRElem.CALL) {
+                checkSymbol(inst.getOp3());
+                for (IRSymbol symbol : inst.getSymbolList()) {
+                    checkSymbol(symbol);
+                }
+            } else if (inst.getType() == IRElem.GETINT || inst.getType() == IRElem.PRINTI) {
+                checkSymbol(inst.getOp3());
+            }
+        }
+    }
+
+    public void checkSymbol(IRSymbol symbol) {
+        if (symbol instanceof IRImmSymbol) {
+            return;
+        }
+        if (!curFunc.isLocalSymbol(symbol) && !globalLabelSet.contains(symbol)) {
+            curFunc.addLocalSymbol(symbol);
+        }
     }
 
     public StringBuilder iRTranslate() {
@@ -51,7 +104,9 @@ public class MIPSTranslater {
     public StringBuilder instTranslate() {
         StringBuilder outStr = new StringBuilder("\n\n.text\n");
         for (IRElem inst : iRList) {
-            if (inst.getType() == IRElem.ADD || inst.getType() == IRElem.MINU ||
+            if (inst.getType() == IRElem.FUNC) {
+                curFunc = functionTemplateTable.get(((IRFuncSymbol) inst.getOp3()).getFunc());
+            } else if (inst.getType() == IRElem.ADD || inst.getType() == IRElem.MINU ||
                     inst.getType() == IRElem.MULT || inst.getType() == IRElem.DIV ||
                     inst.getType() == IRElem.LSHIFT || inst.getType() == IRElem.RSHIFT) {
                 outStr.append(arithmeticTranslate(inst));
@@ -66,6 +121,9 @@ public class MIPSTranslater {
                     inst.getType() == IRElem.RET || inst.getType() == IRElem.CALL ||
                     inst.getType() == IRElem.EXIT) {
                 outStr.append(controlTranslate(inst));
+                if (inst.getType() == IRElem.RET || inst.getType() == IRElem.EXIT) {
+                    curFunc = FunctionTemplate.GLOBAL;
+                }
             } else if (inst.getType() == IRElem.LOAD || inst.getType() == IRElem.STORE ||
                     inst.getType() == IRElem.ALLOCA) {
                 outStr.append(memInstTranslate(inst));
@@ -81,42 +139,46 @@ public class MIPSTranslater {
 
     public StringBuilder loadSymbolToRegister(IRSymbol irSymbol, String regName) {
         StringBuilder outStr = new StringBuilder();
-        if (labelSet.contains(irSymbol)) {
+        if (globalLabelSet.contains(irSymbol)) {
             outStr.append("la $").append(regName).append(", L").
-                    append(((IRLabelSymbol) irSymbol).getId()).append("\n");
+                    append(irSymbol.getId()).append("\n");
         } else if (irSymbol instanceof IRImmSymbol) {
             outStr.append("li $").append(regName).append(", ").
                     append(((IRImmSymbol) irSymbol).getValue()).append("\n");
         } else {
-            int addr = iRAddrMap.getOrDefault(irSymbol, -1);
+            /*int addr = iRAddrMap.getOrDefault(irSymbol, -1);
             if (addr != -1) {
                 outStr.append("lw $").append(regName).append(", ").append(-addr).append("($sp)\n");
             } else {
                 curPos += 4;
                 iRAddrMap.put(irSymbol, curPos);
                 outStr.append("lw $").append(regName).append(", ").append(-curPos).append("($sp)\n");
-            }
+            }*/
+            int addr = curFunc.getSymbolOffset(irSymbol);
+            outStr.append("lw $").append(regName).append(", ").append(-addr).append("($sp)\n");
         }
         return outStr;
     }
 
     public StringBuilder storeRegisterToSymbol(IRSymbol irSymbol, String regName) {
         StringBuilder outStr = new StringBuilder();
-        if (labelSet.contains(irSymbol)) {
+        if (globalLabelSet.contains(irSymbol)) {
             outStr.append("sw $").append(regName).append(", L").append(
-                    ((IRLabelSymbol) irSymbol).getId()).append("\n");
+                    irSymbol.getId()).append("\n");
         } else if (irSymbol instanceof IRImmSymbol) {
             outStr.append("sw $").append(regName).append(", ").append(
                     ((IRImmSymbol) irSymbol).getValue()).append("\n");
         } else {
-            int addr = iRAddrMap.getOrDefault(irSymbol, -1);
+            /*int addr = iRAddrMap.getOrDefault(irSymbol, -1);
             if (addr != -1) {
                 outStr.append("sw $").append(regName).append(", ").append(-addr).append("($sp)\n");
             } else {
                 curPos += 4;
                 iRAddrMap.put(irSymbol, curPos);
                 outStr.append("sw $").append(regName).append(", ").append(-curPos).append("($sp)\n");
-            }
+            }*/
+            int addr = curFunc.getSymbolOffset(irSymbol);
+            outStr.append("sw $").append(regName).append(", ").append(-addr).append("($sp)\n");
         }
         return outStr;
     }
@@ -233,6 +295,7 @@ public class MIPSTranslater {
                 outInst.append("move $v0, $t0");
                 break;
             case IRElem.RET:
+                // TODO: Return恢复现场, $sp
                 outInst.append("jr $ra");
                 break;
             case IRElem.EXIT:
@@ -240,11 +303,20 @@ public class MIPSTranslater {
                 outInst.append("syscall");
                 break;
             case IRElem.CALL:
-                IRFuncSymbol funcIR = (IRFuncSymbol) controlInst.getOp1();
+                // TODO: 调用保存现场
+                IRFuncSymbol funcIR = (IRFuncSymbol) controlInst.getOp1(); // 检索函数
+                // TODO: 保存现场
+                int templateSize = curFunc.getTemplateSize();
+                outInst.append("li $t0, ").append(templateSize).append("\n");
+                outInst.append("addu $t0, $t0, $sp\n");
+                outInst.append("sw $sp, ").append(
+                        4 * (FunctionTemplate.REG_SAVE_AREA_NUM + FunctionTemplate.RET_AREA_NUM)).append("($t0)\n");
+                outInst.append("move $sp, $t0"); // $sp指向新位置
+
                 outInst.append(loadCallParamList(controlInst.getSymbolList(),
-                        funcIR.getfParamList()));
-                outInst.append("jal L").append(((IRLabelSymbol)
-                        ((IRFuncSymbol) controlInst.getOp1()).getEntry()).getId());
+                        funcIR.getfParamList())); // TODO: 装填参数（修改）
+                outInst.append("jal L").append(
+                        ((IRFuncSymbol) controlInst.getOp1()).getEntry().getId()); // 跳转
                 outInst.append("\n");
                 outInst.append("move $t0, $v0").append("\n");
                 outInst.append(storeOp3Symbol(controlInst.getOp3()));
@@ -272,7 +344,7 @@ public class MIPSTranslater {
                 break;
             case IRElem.STORE:
                 outInst.append(loadOp1Symbol(memInst.getOp1()));
-                outInst.append(loadOp2Symbol(memInst.getOp3()));
+                outInst.append(loadOp3Symbol(memInst.getOp3()));
                 offsetSymbol = memInst.getOp2();
                 if (offsetSymbol instanceof IRImmSymbol) {
                     int offset = ((IRImmSymbol) offsetSymbol).getValue();
@@ -284,9 +356,16 @@ public class MIPSTranslater {
                 }
                 break;
             case IRElem.ALLOCA:
+                /*
                 IRImmSymbol allocaSize = (IRImmSymbol) memInst.getOp1();
                 curPos += allocaSize.getValue();
-                outInst.append("li $t0, ").append(curPos).append("\n");
+                outInst.append("li $t0, ").append(curPos).append("\n");*/
+                IRSymbol baseAddrIR = memInst.getOp3();
+                IRImmSymbol allocaSize = (IRImmSymbol) memInst.getOp1();
+                int offset = curFunc.getSymbolOffset(baseAddrIR);
+                int size = round(allocaSize.getValue()); // 按4字节取整
+                int contextOffset = offset + size;
+                outInst.append("li $t0, ").append(contextOffset).append("\n");
                 outInst.append("subu $t0, $sp, $t0\n");
                 outInst.append(storeOp3Symbol(memInst.getOp3()));
                 break;
@@ -322,6 +401,7 @@ public class MIPSTranslater {
     public StringBuilder loadCallParamList(ArrayList<IRSymbol> rParamList,
                                            ArrayList<IRSymbol> fParamList) {
         StringBuilder outStr = new StringBuilder();
+        int localVarOffset = 4*()
         for (int i = 0; i < rParamList.size(); ++i) {
             outStr.append(loadOp3Symbol(rParamList.get(i)));
             outStr.append(storeOp3Symbol(fParamList.get(i)));
@@ -369,5 +449,14 @@ public class MIPSTranslater {
             outStr.append("\"").append(rawStr).append("\"\n");
         }
         return outStr;
+    }
+
+    public int round(int num) {
+        int k = num % 4;
+        if (k == 0) {
+            return num;
+        } else {
+            return num + 4 - k;
+        }
     }
 }

@@ -49,12 +49,24 @@ public class VarSymbol extends Symbol {
         constHasValue = true;
     }
 
+    public void set0DimVarValue(int value) {
+        constValue = new int[1][1];
+        constValue[0][0] = value;
+    }
+
     public void set1DimConstValue(ArrayList<Integer> initValArr, int dim0Length) {
         constValue = new int[1][dim0Length];
         for (int i = 0; i < dim0Length; ++i) {
             constValue[0][i] = initValArr.get(i);
         }
         constHasValue = true;
+    }
+
+    public void set1DimVarValue(ArrayList<Integer> initValArr, int dim0Length) {
+        constValue = new int[1][dim0Length];
+        for (int i = 0; i < dim0Length; ++i) {
+            constValue[0][i] = initValArr.get(i);
+        }
     }
 
     public void set2DimConstValue(ArrayList<ArrayList<Integer>> initValArr, int dim1Length, int dim0Length) {
@@ -66,6 +78,16 @@ public class VarSymbol extends Symbol {
             }
         }
         constHasValue = true;
+    }
+
+    public void set2DimVarValue(ArrayList<ArrayList<Integer>> initValArr, int dim1Length, int dim0Length) {
+        constValue = new int[dim1Length][dim0Length];
+        for (int i = 0; i < dim1Length; ++i) {
+            ArrayList<Integer> curList = initValArr.get(i);
+            for (int j = 0; j < dim0Length; ++j) {
+                constValue[i][j] = curList.get(j);
+            }
+        }
     }
 
     public boolean hasConstValue() {

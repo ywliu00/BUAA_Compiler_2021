@@ -83,6 +83,8 @@ public class IRElem {
         return symbolList;
     }
 
+    // public ArrayList<IRSymbol>
+
     @Override
     public String toString() {
         if (type == ADD) {
