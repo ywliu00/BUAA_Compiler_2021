@@ -13,6 +13,11 @@ public class IRImmSymbol implements IRSymbol{
     }
 
     @Override
+    public int getId() {
+        return value;
+    }
+
+    @Override
     public String toString() {
         return String.valueOf(value);
     }

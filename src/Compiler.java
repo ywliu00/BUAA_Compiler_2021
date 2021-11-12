@@ -3,8 +3,10 @@ import Exceptions.SyntaxException;
 import SyntaxClasses.SyntaxClass;
 import SyntaxClasses.Token;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -12,7 +14,7 @@ import java.util.Collections;
 import java.util.LinkedList;
 
 public class Compiler {
-    public static void main(String[] argv) {
+    public static void main(String[] argv){
         PrintStream ps = null;
         try {
             ps = new PrintStream(new FileOutputStream("testout.txt"));
@@ -50,8 +52,20 @@ public class Compiler {
 
         IRTranslater irTranslater = new IRTranslater(compUnit);
         irTranslater.compUnitTrans();
+        MIPSTranslater mipsTranslater = new MIPSTranslater(irTranslater);
+        StringBuilder mipsStr = mipsTranslater.iRTranslate();
         StringBuilder irStr = irTranslater.outputIR();
-        System.out.println(irStr);
+        File irFile = new File("IR.txt");
+        try {
+            FileOutputStream irOutput = new FileOutputStream(irFile);
+            irOutput.write(irStr.toString().getBytes());
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        System.out.println(mipsStr);
         //Collections.sort(errorList);
         /*for (Error err : errorList) {
             System.out.println(err);

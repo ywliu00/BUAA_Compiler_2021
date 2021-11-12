@@ -16,4 +16,9 @@ public class IRArrSymbol implements IRSymbol{
     public IRSymbol getOffset() {
         return offset;
     }
+
+    @Override
+    public int getId() {
+        return -1;
+    }
 }

@@ -19,9 +19,10 @@ import java.util.LinkedList;
 
 public class IRTranslater {
     private SyntaxClass compUnit;
-    private HashMap<VarSymbol, Integer> constantArrMap; // 常量数组无法消干净
-    private HashMap<VarSymbol, Integer> globalArrMap; // 全局数组
-    private HashMap<Integer, String> formatStrMap; // 格式字符串作常量存
+    private HashMap<VarSymbol, IRSymbol> constantArrMap; // 常量数组无法消干净
+    private HashMap<VarSymbol, IRSymbol> globalArrMap; // 全局数组
+    private HashMap<IRSymbol, String> formatStrMap; // 格式字符串作常量存
+    private HashMap<String, IRFuncSymbol> funcMap; // 函数名和函数标签对应
     private LinkedList<IRElem> iRList;
     private int globalVarID;
     private IRLabelManager iRLabelManager;
@@ -32,10 +33,39 @@ public class IRTranslater {
         constantArrMap = new HashMap<>();
         globalArrMap = new HashMap<>();
         formatStrMap = new HashMap<>();
+        funcMap = new HashMap<>();
         iRList = new LinkedList<>();
         globalVarID = 0;
         iRLabelManager = IRLabelManager.getIRLabelManager();
         mainFunc = null;
+    }
+
+    public SyntaxClass getCompUnit() {
+        return compUnit;
+    }
+
+    public IRSymbol getMainFunc() {
+        return mainFunc;
+    }
+
+    public IRLabelManager getIRLabelManager() {
+        return iRLabelManager;
+    }
+
+    public LinkedList<IRElem> getIRList() {
+        return iRList;
+    }
+
+    public HashMap<IRSymbol, String> getFormatStrMap() {
+        return formatStrMap;
+    }
+
+    public HashMap<VarSymbol, IRSymbol> getConstantArrMap() {
+        return constantArrMap;
+    }
+
+    public HashMap<VarSymbol, IRSymbol> getGlobalArrMap() {
+        return globalArrMap;
     }
 
     public void constDeclTrans(SyntaxClass constDecl) {
@@ -66,9 +96,8 @@ public class IRTranslater {
         SymbolTable curEnv = constDef.getCurEnv();
         VarSymbol constSymbol = curEnv.varGlobalLookup(ident.getTokenContext());
         if (constSymbol.getDimType() != 0) {
-            int constID = constantArrMap.size();
-            constantArrMap.put(constSymbol, constID);
             IRLabelSymbol constIRLabel = iRLabelManager.allocSymbol();
+            constantArrMap.put(constSymbol, constIRLabel);
             curEnv.setVarRef(constSymbol, constIRLabel); // 常值也需要标记起始地址！翻译时再单独处理！
         }
     }
@@ -89,11 +118,15 @@ public class IRTranslater {
             if (sonList.size() > 1) { // 有初始化
                 IRSymbol initValSymbol = singleInitValTrans(sonList.get(2)); // 初始值算出来赋值到一个临时变量上
                 IRLabelSymbol varIRLabel = iRLabelManager.allocSymbol(); // 给新定义的变量申请符号
+                if (isGlobal) {
+                    varIRLabel.setGlobal(true);
+                }
                 curEnv.setVarRef(varSymbol, varIRLabel); // 设置引用
                 IRElem varInitIRElem = new IRElem(IRElem.ASSIGN, varIRLabel, initValSymbol); // 赋值
                 iRList.add(varInitIRElem);
             } else if (isGlobal) { // 全局变量，无初始化，需置0
                 IRLabelSymbol varIRSymbol = iRLabelManager.allocSymbol(); // 申请符号
+                varIRSymbol.setGlobal(true);
                 curEnv.setVarRef(varSymbol, varIRSymbol);
                 IRElem globalInitElem = new IRElem(IRElem.ASSIGN, varIRSymbol, IRImmSymbol.ZERO);
                 iRList.add(globalInitElem);
@@ -106,10 +139,10 @@ public class IRTranslater {
                 memSize = varSymbol.getDimLength(1) * varSymbol.getDimLength(0);
             }
             IRLabelSymbol irLabel = iRLabelManager.allocSymbol(); // 申请中间变量符号
+            irLabel.setGlobal(isGlobal);
             curEnv.setVarRef(varSymbol, irLabel); // 设置当前变量引用关系
             if (isGlobal) { // 全局数组直接设置引用关系，空间已经在数据区分配好
-                globalArrMap.put(varSymbol, irLabel.getId());
-                // TODO: 思考一下globalArrMap是应该VarSymbol -> int 还是反过来会更好？
+                globalArrMap.put(varSymbol, irLabel);
             } else { // 非全局数组再申请空间
                 IRElem identIRElem = new IRElem(IRElem.ALLOCA, irLabel, new IRImmSymbol(memSize * 4));
                 iRList.add(identIRElem);
@@ -278,7 +311,7 @@ public class IRTranslater {
             }
         }
         ArrayList<IRSymbol> paramList = new ArrayList<>(paramLinkedList);
-        IRSymbol funcIRSymbol = new IRFuncSymbol(funcIdent.getTokenContext());
+        IRSymbol funcIRSymbol = funcMap.get(funcIdent.getTokenContext());
         IRSymbol retSymbol = iRLabelManager.allocSymbol();
         IRElem funcCalling = new IRElem(IRElem.CALL, retSymbol, funcIRSymbol, paramList);
         iRList.add(funcCalling);
@@ -624,7 +657,10 @@ public class IRTranslater {
             fParamSymbols = new ArrayList<>();
             block = sonList.get(4);
         }
-        IRSymbol funcIRSymbol = new IRFuncSymbol(funcIdent.getTokenContext());
+        IRFuncSymbol funcIRSymbol = new IRFuncSymbol(funcIdent.getTokenContext());
+        funcIRSymbol.setEntry(funcLabelSymbol);
+        funcIRSymbol.setfParamList(fParamSymbols);
+        funcMap.put(funcIdent.getTokenContext(), funcIRSymbol);
         IRElem funcDefElem = new IRElem(IRElem.FUNC, funcIRSymbol, fParamSymbols);
         iRList.add(funcDefElem);
         IRElem funcDefLabelElem = new IRElem(IRElem.LABEL, funcLabelSymbol);
@@ -645,7 +681,10 @@ public class IRTranslater {
         IRLabelSymbol funcLabelSymbol = iRLabelManager.allocSymbol();
         curEnv.setFuncRef(funcSymbol, funcLabelSymbol); // 保存函数引用信息
         ArrayList<IRSymbol> fParamSymbols = new ArrayList<>();
-        IRSymbol funcIRSymbol = new IRFuncSymbol(funcIdent.getTokenContext());
+        IRFuncSymbol funcIRSymbol = new IRFuncSymbol(funcIdent.getTokenContext());
+        funcIRSymbol.setEntry(funcLabelSymbol);
+        funcIRSymbol.setfParamList(fParamSymbols);
+        funcMap.put("main", funcIRSymbol);
         IRElem funcDefElem = new IRElem(IRElem.FUNC, funcIRSymbol, fParamSymbols);
         iRList.add(funcDefElem);
         IRElem funcLabelElem = new IRElem(IRElem.LABEL, funcLabelSymbol);
@@ -713,7 +752,7 @@ public class IRTranslater {
                 IRSymbol expSymbol = expTrans(objItem);
                 if (lValSymbol instanceof IRLabelSymbol) { // LVal单变量
                     IRElem assignElem;
-                    if (disableSSA) { // 撤销SSA，直接使用已有符号
+                    if (disableSSA || ((IRLabelSymbol) lValSymbol).isGlobal()) { // 撤销SSA，直接使用已有符号
                         assignElem = new IRElem(IRElem.ASSIGN, lValSymbol, expSymbol);
                     } else { // 使用SSA，新建符号
                         lValSymbol = iRLabelManager.allocSymbol();
@@ -824,14 +863,14 @@ public class IRTranslater {
                 int i;
                 for (i = 0; i < formatStr.getFormatCharNum(); ++i) {
                     IRLabelSymbol rawStrLabel = iRLabelManager.allocSymbol();
-                    formatStrMap.put(rawStrLabel.getId(), rawStrList.get(i));
+                    formatStrMap.put(rawStrLabel, rawStrList.get(i));
                     IRElem printStr = new IRElem(IRElem.PRINTS, rawStrLabel);
                     iRList.add(printStr);
                     IRElem printInt = new IRElem(IRElem.PRINTI, paramSymbolList.get(i));
                     iRList.add(printInt);
                 }
                 IRLabelSymbol rawStrLabel = iRLabelManager.allocSymbol();
-                formatStrMap.put(rawStrLabel.getId(), rawStrList.get(i));
+                formatStrMap.put(rawStrLabel, rawStrList.get(i));
                 IRElem printStr = new IRElem(IRElem.PRINTS, rawStrLabel);
                 iRList.add(printStr);
             }
@@ -841,8 +880,7 @@ public class IRTranslater {
     public StringBuilder outputIR() {
         StringBuilder outStr = new StringBuilder(".data\n");
         for (VarSymbol constVarSymbol : constantArrMap.keySet()) {
-            int constID = constantArrMap.get(constVarSymbol);
-            IRSymbol constSymbol = iRLabelManager.getSymbolById(constID);
+            IRSymbol constSymbol = constantArrMap.get(constVarSymbol);
             outStr.append(".align 2\n");
             outStr.append(constSymbol.toString()).append(":\n.word ");
             ArrayList<Integer> constArr = constVarSymbol.constGetAllValue();
@@ -853,8 +891,7 @@ public class IRTranslater {
             outStr.append(constArr.get(i)).append("\n");
         }
         for (VarSymbol globalVarSymbol : globalArrMap.keySet()) {
-            int constID = globalArrMap.get(globalVarSymbol);
-            IRSymbol constSymbol = iRLabelManager.getSymbolById(constID);
+            IRSymbol constSymbol = globalArrMap.get(globalVarSymbol);
             outStr.append(".align 2\n");
             outStr.append(constSymbol.toString()).append(":\n.word ");
             ArrayList<Integer> constArr = globalVarSymbol.constGetAllValue();
@@ -864,11 +901,10 @@ public class IRTranslater {
             }
             outStr.append(constArr.get(i)).append("\n");
         }
-        for (int rawStrID : formatStrMap.keySet()) {
-            IRSymbol strSymbol = iRLabelManager.getSymbolById(rawStrID);
+        for (IRSymbol strSymbol : formatStrMap.keySet()) {
             outStr.append(".align 2\n");
             outStr.append(strSymbol.toString()).append(":\n.asciiz ");
-            String rawStr = formatStrMap.get(rawStrID);
+            String rawStr = formatStrMap.get(strSymbol);
             outStr.append("\"").append(rawStr).append("\"\n");
         }
 
