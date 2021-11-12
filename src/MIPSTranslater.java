@@ -96,6 +96,7 @@ public class MIPSTranslater {
     }
 
     public StringBuilder iRTranslate() {
+        buildFunctionTemplate();
         StringBuilder outStr = outputDataSegment();
         outStr.append(instTranslate());
         return outStr;
@@ -106,6 +107,8 @@ public class MIPSTranslater {
         for (IRElem inst : iRList) {
             if (inst.getType() == IRElem.FUNC) {
                 curFunc = functionTemplateTable.get(((IRFuncSymbol) inst.getOp3()).getFunc());
+                outStr.append("Func_").append(((IRFuncSymbol) inst.getOp3()).getFunc()).append(":\n");
+                outStr.append("sw $ra, 0($sp)\n"); // 保存返回位置
             } else if (inst.getType() == IRElem.ADD || inst.getType() == IRElem.MINU ||
                     inst.getType() == IRElem.MULT || inst.getType() == IRElem.DIV ||
                     inst.getType() == IRElem.LSHIFT || inst.getType() == IRElem.RSHIFT) {
@@ -131,7 +134,7 @@ public class MIPSTranslater {
                     inst.getType() == IRElem.PRINTS) {
                 outStr.append(ioInstTranslate(inst));
             } else if (inst.getType() == IRElem.LABEL) {
-                outStr.append("L").append(((IRLabelSymbol) inst.getOp3()).getId()).append(":\n");
+                outStr.append("L").append(inst.getOp3().getId()).append(":\n");
             }
         }
         return outStr;
@@ -278,51 +281,53 @@ public class MIPSTranslater {
         switch (controlInst.getType()) {
             case IRElem.BR:
                 IRLabelSymbol label = (IRLabelSymbol) controlInst.getOp3();
-                outInst.append("j L").append(label.getId());
+                outInst.append("j L").append(label.getId()).append("\n");
                 break;
             case IRElem.BZ:
                 label = (IRLabelSymbol) controlInst.getOp3();
                 outInst.append(loadOp1Symbol(controlInst.getOp1()));
-                outInst.append("beqz $t1, L").append(label.getId());
+                outInst.append("beqz $t1, L").append(label.getId()).append("\n");
                 break;
             case IRElem.BNZ:
                 label = (IRLabelSymbol) controlInst.getOp3();
                 outInst.append(loadOp1Symbol(controlInst.getOp1()));
-                outInst.append("bnez $t1, L").append(label.getId());
+                outInst.append("bnez $t1, L").append(label.getId()).append("\n");
                 break;
             case IRElem.SETRET:
                 outInst.append(loadOp1Symbol(controlInst.getOp3()));
-                outInst.append("move $v0, $t0");
+                outInst.append("move $v0, $t0\n");
                 break;
             case IRElem.RET:
-                // TODO: Return恢复现场, $sp
-                outInst.append("jr $ra");
+                // Return恢复现场, $sp和$ra
+                outInst.append("lw $ra, 0($sp)\n");
+                outInst.append("lw $sp, ").append(-(4 * FunctionTemplate.RET_AREA_NUM)).append("($sp)\n");
+                outInst.append("jr $ra\n\n");
                 break;
             case IRElem.EXIT:
                 outInst.append("li $v0, 10").append("\n");
-                outInst.append("syscall");
+                outInst.append("syscall\n");
                 break;
             case IRElem.CALL:
-                // TODO: 调用保存现场
                 IRFuncSymbol funcIR = (IRFuncSymbol) controlInst.getOp1(); // 检索函数
-                // TODO: 保存现场
+                // 保存现场
                 int templateSize = curFunc.getTemplateSize();
                 outInst.append("li $t0, ").append(templateSize).append("\n");
-                outInst.append("addu $t0, $t0, $sp\n");
+                outInst.append("addu $t4, $t0, $sp\n"); // $t4存储新的$sp
                 outInst.append("sw $sp, ").append(
-                        4 * (FunctionTemplate.REG_SAVE_AREA_NUM + FunctionTemplate.RET_AREA_NUM)).append("($t0)\n");
-                outInst.append("move $sp, $t0"); // $sp指向新位置
+                        -4 * (FunctionTemplate.RET_AREA_NUM)).append("($t4)\n");  // $sp填入现场保存区第一个位置
 
                 outInst.append(loadCallParamList(controlInst.getSymbolList(),
-                        funcIR.getfParamList())); // TODO: 装填参数（修改）
-                outInst.append("jal L").append(
-                        ((IRFuncSymbol) controlInst.getOp1()).getEntry().getId()); // 跳转
+                        funcIR.getfParamList(), "t4")); // 装填参数
+                outInst.append("move $sp, $t4\n"); // $sp指向新位置
+//                outInst.append("jal L").append(
+//                        ((IRFuncSymbol) controlInst.getOp1()).getEntry().getId()); // 跳转
+                outInst.append("jal Func_").append(
+                        ((IRFuncSymbol) controlInst.getOp1()).getFunc()); // 跳转
                 outInst.append("\n");
                 outInst.append("move $t0, $v0").append("\n");
                 outInst.append(storeOp3Symbol(controlInst.getOp3()));
                 break;
         }
-        outInst.append("\n");
         return outInst;
     }
 
@@ -399,22 +404,23 @@ public class MIPSTranslater {
     }
 
     public StringBuilder loadCallParamList(ArrayList<IRSymbol> rParamList,
-                                           ArrayList<IRSymbol> fParamList) {
+                                           ArrayList<IRSymbol> fParamList, String newSPVal) {
         StringBuilder outStr = new StringBuilder();
-        int localVarOffset = 4*()
-        for (int i = 0; i < rParamList.size(); ++i) {
+        int localVarOffset = curFunc.getLocalVarOffsetBytes();
+        /*for (int i = 0; i < rParamList.size(); ++i) {
             outStr.append(loadOp3Symbol(rParamList.get(i)));
             outStr.append(storeOp3Symbol(fParamList.get(i)));
-        }
-        /*for (int i = rParamList.size() - 1; i >= 0; --i) {
+        }*/
+        for (int i = 0; i < rParamList.size(); ++i) {
             outStr.append(loadOp1Symbol(rParamList.get(i)));
-            curPos += 4;
+            // curPos += 4;
             if (i <= 3) {
                 outStr.append("move $a").append(i).append(", $t1\n");
             }
-            outStr.append("sw $t1, ").append(-curPos).append("($sp)\n");
+            outStr.append("sw $t1, ").append(-(localVarOffset + i * 4)).
+                    append("($").append(newSPVal).append(")\n"); // 这里往新$sp位置填参数
 
-        }*/
+        }
         return outStr;
     }
 

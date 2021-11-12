@@ -25,8 +25,8 @@ public class FunctionTemplate {
         fParamList = funcSymbol.getfParamList();
         curPos = 4 * (RET_AREA_NUM + REG_SAVE_AREA_NUM);
         for (IRSymbol symbol : fParamList) {
-            curPos += 4;
             symbolOffsetTable.put(symbol, curPos);
+            curPos += 4;
         }
     }
 
@@ -38,7 +38,7 @@ public class FunctionTemplate {
         return 4;
     }
 
-    public int getLocalVarOffset() { // 还在顶部，其实还要再挪4Byte
+    public int getLocalVarOffsetBytes() { // 还在顶部，其实还要再挪4Byte
         return 4 * (RET_AREA_NUM + REG_SAVE_AREA_NUM);
     }
 
@@ -51,15 +51,15 @@ public class FunctionTemplate {
     }
 
     public void addLocalSymbol(IRSymbol symbol) {
-        curPos += 4;
         symbolOffsetTable.put(symbol, curPos);
+        curPos += 4;
     }
 
     public void setfParamList(ArrayList<IRSymbol> fParamList) {
         this.fParamList = fParamList;
         for (IRSymbol symbol : fParamList) {
-            curPos += 4;
             symbolOffsetTable.put(symbol, curPos);
+            curPos += 4;
         }
     }
 

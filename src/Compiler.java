@@ -17,13 +17,13 @@ public class Compiler {
     public static void main(String[] argv){
         PrintStream ps = null;
         try {
-            ps = new PrintStream(new FileOutputStream("testout.txt"));
+            ps = new PrintStream(new FileOutputStream("mips.txt"));
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
         System.setOut(ps);
 
-        ReadFile readFile = new ReadFile("testfile_1.txt");
+        ReadFile readFile = new ReadFile("testfile.txt");
         LexicalAnalyzer lexicalAnalyzer = new LexicalAnalyzer();
         SyntaxAnalyzer syntaxAnalyzer = new SyntaxAnalyzer();
         ArrayList<Error> errorList = new ArrayList<>();
@@ -52,9 +52,7 @@ public class Compiler {
 
         IRTranslater irTranslater = new IRTranslater(compUnit);
         irTranslater.compUnitTrans();
-        MIPSTranslater mipsTranslater = new MIPSTranslater(irTranslater);
-        StringBuilder mipsStr = mipsTranslater.iRTranslate();
-        StringBuilder irStr = irTranslater.outputIR();
+        /*StringBuilder irStr = irTranslater.outputIR();
         File irFile = new File("IR.txt");
         try {
             FileOutputStream irOutput = new FileOutputStream(irFile);
@@ -63,7 +61,10 @@ public class Compiler {
             e.printStackTrace();
         } catch (IOException e) {
             e.printStackTrace();
-        }
+        }*/
+
+        MIPSTranslater mipsTranslater = new MIPSTranslater(irTranslater);
+        StringBuilder mipsStr = mipsTranslater.iRTranslate();
 
         System.out.println(mipsStr);
         //Collections.sort(errorList);

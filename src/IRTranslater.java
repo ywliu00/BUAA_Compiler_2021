@@ -278,7 +278,7 @@ public class IRTranslater {
         } else if (sonList.size() == 2) { // UnaryOp UnaryExp
             IRSymbol resSymbol;
             IRSymbol subExpSymbol = unaryExpTrans(sonList.get(1));
-            Token mathSymbol = (Token) sonList.get(0);
+            Token mathSymbol = (Token) sonList.get(0).getSonNodeList().get(0);
             if (mathSymbol.getTokenType() == Token.MINU) { // -
                 resSymbol = iRLabelManager.allocSymbol();
                 IRElem exprIR = new IRElem(IRElem.MINU, resSymbol,

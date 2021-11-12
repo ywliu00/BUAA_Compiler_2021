@@ -101,9 +101,8 @@ public class CompUnitSimplifyer {
                 int dim0Length = dim0LengthExp.getConstValue();
                 identSymbol.setDimLengthByDim(1, dim1Length); // 设置长度
                 identSymbol.setDimLengthByDim(0, dim0Length);
-                SyntaxClass constInitVal = sonList.get(8);
                 ArrayList<ArrayList<Integer>> constInitValArr = new ArrayList<>();
-                if (sonList.size() == 7) {
+                if (sonList.size() == 7) { // 无初始化
                     for (int i = 0; i < dim1Length; ++i) {
                         ArrayList<Integer> globalInitArr = new ArrayList<>();
                         for (int j = 0; j < dim0Length; ++j) {
@@ -112,6 +111,7 @@ public class CompUnitSimplifyer {
                         constInitValArr.add(globalInitArr);
                     }
                 } else {
+                    SyntaxClass constInitVal = sonList.get(8);
                     ArrayList<SyntaxClass> initSonList = constInitVal.getSonNodeList();
                     for (int i = 1; i < initSonList.size() - 1; i += 2) {
                         constInitValArr.add(oneDimConstInitValArr(initSonList.get(i)));
