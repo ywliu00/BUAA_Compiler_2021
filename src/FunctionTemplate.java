@@ -47,7 +47,8 @@ public class FunctionTemplate {
     }
 
     public int getTemplateSize() {
-        return 4 * (RET_AREA_NUM + REG_SAVE_AREA_NUM + symbolOffsetTable.size());
+        //return 4 * (RET_AREA_NUM + REG_SAVE_AREA_NUM + symbolOffsetTable.size());
+        return curPos;
     }
 
     public void addLocalSymbol(IRSymbol symbol) {

@@ -8,7 +8,7 @@ public class IRElem {
             EQL = 11, NEQ = 12, BR = 13, BZ = 14, CALL = 15, RET = 16,
             EXIT = 17, LOAD = 18, STORE = 19, ALLOCA = 20, GETINT = 21,
             PRINTS = 22, FUNC = 23, LABEL = 24, SETRET = 27,
-            PRINTI = 28, BNZ = 29;
+            PRINTI = 28, BNZ = 29, MOD = 30;
     private int type;
     private IRSymbol op1;
     private IRSymbol op2;
@@ -95,6 +95,8 @@ public class IRElem {
             return op3.toString() + " = " + op1.toString() + " * " + op2.toString();
         } else if (type == DIV) {
             return op3.toString() + " = " + op1.toString() + " / " + op2.toString();
+        } else if (type == MOD) {
+            return op3.toString() + " = " + op1.toString() + " % " + op2.toString();
         } else if (type == ASSIGN) {
             return op3.toString() + " = " + op1.toString();
         } else if (type == GRE) {

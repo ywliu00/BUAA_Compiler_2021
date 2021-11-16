@@ -56,6 +56,7 @@ public class MIPSTranslater {
                 this.curFunc = FunctionTemplate.GLOBAL;
             } else if (inst.getType() == IRElem.ADD || inst.getType() == IRElem.MINU ||
                     inst.getType() == IRElem.MULT || inst.getType() == IRElem.DIV ||
+                    inst.getType() == IRElem.MOD ||
                     inst.getType() == IRElem.LSHIFT || inst.getType() == IRElem.RSHIFT ||
                     inst.getType() == IRElem.GRE || inst.getType() == IRElem.GEQ ||
                     inst.getType() == IRElem.LSS || inst.getType() == IRElem.LEQ ||
@@ -111,7 +112,8 @@ public class MIPSTranslater {
                 outStr.append("sw $ra, 0($sp)\n"); // 保存返回位置
             } else if (inst.getType() == IRElem.ADD || inst.getType() == IRElem.MINU ||
                     inst.getType() == IRElem.MULT || inst.getType() == IRElem.DIV ||
-                    inst.getType() == IRElem.LSHIFT || inst.getType() == IRElem.RSHIFT) {
+                    inst.getType() == IRElem.MOD || inst.getType() == IRElem.LSHIFT ||
+                    inst.getType() == IRElem.RSHIFT) {
                 outStr.append(arithmeticTranslate(inst));
             } else if (inst.getType() == IRElem.GRE || inst.getType() == IRElem.GEQ ||
                     inst.getType() == IRElem.LSS || inst.getType() == IRElem.LEQ ||
@@ -221,6 +223,10 @@ public class MIPSTranslater {
                 outInst.append("div $t1, $t2").append("\n");
                 outInst.append("mflo $t0");
                 break;
+            case IRElem.MOD:
+                outInst.append("div $t1, $t2").append("\n");
+                outInst.append("mfhi $t0");
+                break;
             case IRElem.LSHIFT:
                 outInst.append("sllv $t0, $t1, $t2");
                 break;
@@ -295,7 +301,7 @@ public class MIPSTranslater {
                 break;
             case IRElem.SETRET:
                 outInst.append(loadOp1Symbol(controlInst.getOp3()));
-                outInst.append("move $v0, $t0\n");
+                outInst.append("move $v0, $t1\n");
                 break;
             case IRElem.RET:
                 // Return恢复现场, $sp和$ra
@@ -312,7 +318,8 @@ public class MIPSTranslater {
                 // 保存现场
                 int templateSize = curFunc.getTemplateSize();
                 outInst.append("li $t0, ").append(templateSize).append("\n");
-                outInst.append("addu $t4, $t0, $sp\n"); // $t4存储新的$sp
+                //outInst.append("addu $t4, $t0, $sp\n"); // $t4存储新的$sp
+                outInst.append("subu $t4, $sp, $t0\n"); // $t4存储新的$sp，$sp自顶向下增长
                 outInst.append("sw $sp, ").append(
                         -4 * (FunctionTemplate.RET_AREA_NUM)).append("($t4)\n");  // $sp填入现场保存区第一个位置
 

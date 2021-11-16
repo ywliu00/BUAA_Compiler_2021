@@ -84,6 +84,10 @@ public class IRTranslater {
                 funcDefTrans(syntaxClass);
             } else {
                 mainFunc = mainFuncDefTrans(syntaxClass);
+                /*IRSymbol funcIRSymbol = funcMap.get("main");
+                IRSymbol retSymbol = iRLabelManager.allocSymbol();
+                ArrayList<IRSymbol> paramList = new ArrayList<>();
+                IRElem progEnter = new IRElem(IRElem.CALL, retSymbol, funcIRSymbol, paramList);*/
                 IRElem progEnter = new IRElem(IRElem.BR, mainFunc);
                 iRList.addFirst(progEnter);
             }
@@ -159,7 +163,7 @@ public class IRTranslater {
                             new IRImmSymbol(i * 4));
                     iRList.add(initElem);
                 }
-            } else if (varSymbol.getDimType() == 2 && sonList.size() > 4 && !isGlobal) { // 局部二维数组初始化
+            } else if (varSymbol.getDimType() == 2 && sonList.size() > 7 && !isGlobal) { // 局部二维数组初始化
                 SyntaxClass arrInitVal = sonList.get(8);
                 ArrayList<SyntaxClass> initValListList = arrInitVal.getSonNodeList();
                 for (int i = 0; i < varSymbol.getDimLength(1); ++i) {
@@ -258,8 +262,10 @@ public class IRTranslater {
             IRElem exprIR;
             if (mathToken.getTokenType() == Token.MULT) {
                 exprIR = new IRElem(IRElem.MULT, resSymbol, symbol0, symbol1);
-            } else {
+            } else if (mathToken.getTokenType() == Token.DIV) {
                 exprIR = new IRElem(IRElem.DIV, resSymbol, symbol0, symbol1);
+            } else {
+                exprIR = new IRElem(IRElem.MOD, resSymbol, symbol0, symbol1);
             }
             iRList.add(exprIR);
             return resSymbol;
@@ -382,6 +388,8 @@ public class IRTranslater {
             IRLabelSymbol lValVarSymbol = curEnv.getLastVarRef(identSymbol);
             if (lValVarSymbol == null) {
                 lValVarSymbol = iRLabelManager.allocSymbol();
+                // TODO: 刚刚修改的LVal新申请符号时加入记录
+                curEnv.setVarRef(identSymbol, lValVarSymbol);
             } else if( lValVarSymbol.isGlobal()){ // 全局变量，视作数组
                 return new IRArrSymbol(lValVarSymbol, IRImmSymbol.ZERO);
             }

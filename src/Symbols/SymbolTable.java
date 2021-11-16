@@ -105,7 +105,8 @@ public class SymbolTable {
     }
 
     public VarSymbol varLocalLookup(String name, int curListPos) {
-        for (int i = curListPos - 1; i >= 0; --i) {
+        int i = curListPos >= varSymbolList.size() ? varSymbolList.size() - 1 : curListPos;
+        for (; i >= 0; --i) {
             if (varSymbolList.get(i).getName().equals(name)) {
                 return varSymbolList.get(i);
             }

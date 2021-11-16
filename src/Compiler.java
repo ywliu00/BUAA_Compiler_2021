@@ -14,7 +14,9 @@ import java.util.Collections;
 import java.util.LinkedList;
 
 public class Compiler {
-    public static void main(String[] argv){
+    public static void main(String[] argv) {
+        boolean isDebug = false;
+
         PrintStream ps = null;
         try {
             ps = new PrintStream(new FileOutputStream("mips.txt"));
@@ -23,7 +25,12 @@ public class Compiler {
         }
         System.setOut(ps);
 
-        ReadFile readFile = new ReadFile("testfile.txt");
+        ReadFile readFile;
+        if (!isDebug) {
+            readFile = new ReadFile("testfile.txt");
+        } else {
+            readFile = new ReadFile("C/testfile15.txt");
+        }
         LexicalAnalyzer lexicalAnalyzer = new LexicalAnalyzer();
         SyntaxAnalyzer syntaxAnalyzer = new SyntaxAnalyzer();
         ArrayList<Error> errorList = new ArrayList<>();
@@ -52,16 +59,19 @@ public class Compiler {
 
         IRTranslater irTranslater = new IRTranslater(compUnit);
         irTranslater.compUnitTrans();
-        /*StringBuilder irStr = irTranslater.outputIR();
-        File irFile = new File("IR.txt");
-        try {
-            FileOutputStream irOutput = new FileOutputStream(irFile);
-            irOutput.write(irStr.toString().getBytes());
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }*/
+
+        if (isDebug) {
+            StringBuilder irStr = irTranslater.outputIR();
+            File irFile = new File("IR.txt");
+            try {
+                FileOutputStream irOutput = new FileOutputStream(irFile);
+                irOutput.write(irStr.toString().getBytes());
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
 
         MIPSTranslater mipsTranslater = new MIPSTranslater(irTranslater);
         StringBuilder mipsStr = mipsTranslater.iRTranslate();

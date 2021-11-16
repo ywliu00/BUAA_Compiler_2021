@@ -282,8 +282,10 @@ public class CompUnitSimplifyer {
                 Token symbolToken = (Token) expSonNodeList.get(1);
                 if (symbolToken.getTokenType() == Token.MULT) {
                     mulExp.setConstValue(sonMulExp.getConstValue() * sonUnaryExp.getConstValue());
-                } else {
+                } else if (symbolToken.getTokenType() == Token.DIV) {
                     mulExp.setConstValue(sonMulExp.getConstValue() / sonUnaryExp.getConstValue());
+                } else {
+                    mulExp.setConstValue(sonMulExp.getConstValue() % sonUnaryExp.getConstValue());
                 }
                 mulExp.setCalculated(true);
             }
@@ -361,7 +363,7 @@ public class CompUnitSimplifyer {
         SymbolTable lValEnv = lVal.getCurEnv();
         VarSymbol identSymbol = (VarSymbol) lValEnv.globalLookup(ident.getTokenContext(), 0);
         if (!identSymbol.hasConstValue()) { // 本层后面覆盖了该LVal的定义，此处应向前找上一次定义
-            identSymbol = (VarSymbol) lValEnv.upLevelLookup(ident.getTokenContext(), 0);
+            identSymbol = (VarSymbol) lValEnv.varLocalLookup(ident.getTokenContext(), lVal.getCurVarListPos());
         }
         if (identSymbol == null || !identSymbol.hasConstValue()) { // 还没找到，说明ident不是常量
             return;
@@ -444,8 +446,10 @@ public class CompUnitSimplifyer {
             Token symbolToken = (Token) expSonNodeList.get(1);
             if (symbolToken.getTokenType() == Token.MULT) {
                 constMulExp.setConstValue(sonMulExp.getConstValue() * sonUnaryExp.getConstValue());
-            } else {
+            } else if (symbolToken.getTokenType() == Token.DIV) {
                 constMulExp.setConstValue(sonMulExp.getConstValue() / sonUnaryExp.getConstValue());
+            } else {
+                constMulExp.setConstValue(sonMulExp.getConstValue() % sonUnaryExp.getConstValue());
             }
         }
         constMulExp.setCalculated(true);
@@ -509,7 +513,8 @@ public class CompUnitSimplifyer {
         SymbolTable lValEnv = constLVal.getCurEnv();
         VarSymbol identSymbol = (VarSymbol) lValEnv.globalLookup(ident.getTokenContext(), 0);
         if (!identSymbol.hasConstValue()) { // 本层后面覆盖了该LVal的定义，此处应向前找上一次定义
-            identSymbol = (VarSymbol) lValEnv.upLevelLookup(ident.getTokenContext(), 0);
+            //identSymbol = (VarSymbol) lValEnv.upLevelLookup(ident.getTokenContext(), 0);
+            identSymbol = lValEnv.varGlobalLookup(ident.getTokenContext(), constLVal.getCurVarListPos());
         }
         if (expSonNodeList.size() == 1) {
             constLVal.setConstValue(identSymbol.constGetValue());
