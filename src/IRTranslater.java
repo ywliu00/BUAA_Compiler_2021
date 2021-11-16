@@ -118,7 +118,7 @@ public class IRTranslater {
         Token ident = (Token) sonList.get(0);
         SymbolTable curEnv = varDef.getCurEnv();
         VarSymbol varSymbol = curEnv.varGlobalLookup(ident.getTokenContext());
-        if (varSymbol.getDimType() == 0) { // 单变量，仅考虑是否初始化
+        if (varSymbol.getDimType() == 0) { // 单变量，考虑是否初始化
             if (sonList.size() > 1) { // 有初始化
                 IRSymbol initValSymbol = singleInitValTrans(sonList.get(2)); // 初始值算出来赋值到一个临时变量上
                 IRLabelSymbol varIRLabel = iRLabelManager.allocSymbol(); // 给新定义的变量申请符号
@@ -136,6 +136,9 @@ public class IRTranslater {
                 varIRSymbol.setGlobal(true);
                 curEnv.setVarRef(varSymbol, varIRSymbol);
                 globalArrMap.put(varSymbol, varIRSymbol);
+            } else { //局部变量，无初始化，需要申请符号设置引用关系，以备后续使用
+                IRLabelSymbol varIRSymbol = iRLabelManager.allocSymbol();
+                curEnv.setVarRef(varSymbol, varIRSymbol);
             }
         } else { // 定义数组时申请空间
             int memSize = 0;
@@ -805,7 +808,7 @@ public class IRTranslater {
         } else if (firstItem.getSyntaxType() == SyntaxClass.EXP) { // Exp
             expTrans(firstItem);
         } else if (firstItem.getSyntaxType() == SyntaxClass.BLOCK) { // Block
-            blockTrans(firstItem, disableSSA);
+            blockTrans(firstItem, true);
         } else { // 剩下的都是Token
             Token firstItemToken = (Token) firstItem;
             if (firstItemToken.getTokenType() == Token.IFTK) { // if (Cond) Stmt
