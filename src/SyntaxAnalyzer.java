@@ -47,7 +47,7 @@ public class SyntaxAnalyzer {
 
     public SyntaxClass readCompUnit() throws SyntaxException {
         SyntaxClass compUnit = new SyntaxClass(SyntaxClass.COMPUNIT);
-        SymbolTable globalSymbolTable = new SymbolTable();
+        SymbolTable globalSymbolTable = new SymbolTable(null, 0);
         compUnit.setCurEnv(globalSymbolTable); // 创建并设置全局符号表
         if (pos >= tokenList.size()) {
             return null;
@@ -490,7 +490,7 @@ public class SyntaxAnalyzer {
         if (pos >= tokenList.size()) {
             return null;
         }
-        SymbolTable funcBlockEnv = new SymbolTable(curEnv);
+        SymbolTable funcBlockEnv = new SymbolTable(curEnv, curEnv.getCurListPos());
         SyntaxClass funcDef = new SyntaxClass(SyntaxClass.FUNCDEF);
         funcDef.setCurEnv(curEnv);
         SyntaxClass funcType, block;
@@ -574,7 +574,7 @@ public class SyntaxAnalyzer {
         if (pos >= tokenList.size()) {
             return null;
         }
-        SymbolTable mainFuncBlockEnv = new SymbolTable(curEnv);
+        SymbolTable mainFuncBlockEnv = new SymbolTable(curEnv, curEnv.getCurListPos());
         SyntaxClass mainFuncDef = new SyntaxClass(SyntaxClass.MAINFUNCDEF);
         mainFuncDef.setCurEnv(curEnv);
         SyntaxClass block;
@@ -887,7 +887,8 @@ public class SyntaxAnalyzer {
             }
             // Stmt
             // 新作用域
-            SymbolTable ifStmtEnv = new SymbolTable(curEnv);
+            //SymbolTable ifStmtEnv = new SymbolTable(curEnv);
+            SymbolTable ifStmtEnv = curEnv;
             SyntaxClass subStmt = readStmt(ifStmtEnv);
             if (subStmt == null) {
                 throw new SyntaxException();
@@ -900,7 +901,8 @@ public class SyntaxAnalyzer {
                 stmt.appendSonNode(token);
                 // Stmt
                 // 新作用域
-                SymbolTable elseStmtEnv = new SymbolTable(curEnv);
+                //SymbolTable elseStmtEnv = new SymbolTable(curEnv);
+                SymbolTable elseStmtEnv = curEnv;
                 subStmt = readStmt(elseStmtEnv);
                 if (subStmt == null) {
                     throw new SyntaxException();
@@ -937,7 +939,7 @@ public class SyntaxAnalyzer {
             }
             // Stmt
             // While的新作用域
-            SymbolTable whileStmtEnv = new SymbolTable(curEnv);
+            SymbolTable whileStmtEnv = new SymbolTable(curEnv, curEnv.getCurListPos());
             whileStmtEnv.setCycleBlock(true); // 标记为循环块的作用域
             SyntaxClass subStmt = readStmt(whileStmtEnv);
             if (subStmt == null) {
@@ -1078,7 +1080,7 @@ public class SyntaxAnalyzer {
         } else if (nextTokenType == Token.LBRACE) {
             // 左花括号，说明是一个Block
             // 新作用域
-            SymbolTable blockEnv = new SymbolTable(curEnv);
+            SymbolTable blockEnv = new SymbolTable(curEnv, curEnv.getCurListPos());
             SyntaxClass block = readBlock(blockEnv);
             if (block == null) {
                 throw new SyntaxException();

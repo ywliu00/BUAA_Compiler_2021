@@ -18,8 +18,9 @@ public class SymbolTable {
     private ArrayList<VarSymbol> varSymbolList;
     private IRSymbol cycleStart;
     private IRSymbol cycleEnd;
+    private int parentCurPos;
 
-    public SymbolTable() {
+    /*public SymbolTable() {
         parent = null;
         varSymbolMap = new HashMap<>();
         funcSymbolMap = new HashMap<>();
@@ -28,10 +29,11 @@ public class SymbolTable {
         varRefMap = new HashMap<>();
         funcRefMap = new HashMap<>();
         varSymbolList = new ArrayList<>();
-    }
+    }*/
 
-    public SymbolTable(SymbolTable parent) {
+    public SymbolTable(SymbolTable parent, int parentCurPos) {
         this.parent = parent;
+        this.parentCurPos = parentCurPos;
         varSymbolMap = new HashMap<>();
         funcSymbolMap = new HashMap<>();
         cycleBlock = false;
@@ -105,7 +107,8 @@ public class SymbolTable {
     }
 
     public VarSymbol varLocalLookup(String name, int curListPos) {
-        int i = curListPos >= varSymbolList.size() ? varSymbolList.size() - 1 : curListPos;
+        //int i = curListPos >= varSymbolList.size() ? varSymbolList.size() - 1 : curListPos;
+        int i = curListPos - 1;
         for (; i >= 0; --i) {
             if (varSymbolList.get(i).getName().equals(name)) {
                 return varSymbolList.get(i);
@@ -119,12 +122,14 @@ public class SymbolTable {
         if (res != null) {
             return res;
         }
+        int parentPos = this.parentCurPos;
         SymbolTable curTable = this.getParent();
         while (curTable != null) {
-            res = curTable.varLocalLookup(name);
+            res = curTable.varLocalLookup(name, parentPos);
             if (res != null) {
                 return res;
             }
+            parentPos = curTable.parentCurPos;
             curTable = curTable.getParent();
         }
         return null;
