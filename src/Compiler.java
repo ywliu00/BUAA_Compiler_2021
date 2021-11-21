@@ -1,5 +1,8 @@
 import Exceptions.LexicalException;
 import Exceptions.SyntaxException;
+import IR.CompUnitSimplifyer;
+import IR.IRTranslater;
+import Optimizer.IROptimizer;
 import SyntaxClasses.SyntaxClass;
 import SyntaxClasses.Token;
 
@@ -9,13 +12,11 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.LinkedList;
 
 public class Compiler {
     public static void main(String[] argv) {
-        boolean isDebug = false;
+        boolean isDebug = true;
 
         PrintStream ps = null;
         try {
@@ -29,7 +30,7 @@ public class Compiler {
         if (!isDebug) {
             readFile = new ReadFile("testfile.txt");
         } else {
-            readFile = new ReadFile("testfile6.txt");
+            readFile = new ReadFile("testfile3.txt");
         }
         LexicalAnalyzer lexicalAnalyzer = new LexicalAnalyzer();
         SyntaxAnalyzer syntaxAnalyzer = new SyntaxAnalyzer();
@@ -73,6 +74,24 @@ public class Compiler {
             }
         }
 
+        IROptimizer optimizer = new IROptimizer(irTranslater);
+        optimizer.doOptimize();
+        optimizer.basicBlockInit();
+        if (isDebug) {
+            //StringBuilder irStr = irTranslater.outputIR();
+            StringBuilder irStr = optimizer.printBasicBlock();
+            File irFile = new File("IR_Opt.txt");
+            try {
+                FileOutputStream irOutput = new FileOutputStream(irFile);
+                irOutput.write(irStr.toString().getBytes());
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+
         MIPSTranslater mipsTranslater = new MIPSTranslater(irTranslater);
         StringBuilder mipsStr = mipsTranslater.iRTranslate();
 
@@ -81,7 +100,7 @@ public class Compiler {
         /*for (Error err : errorList) {
             System.out.println(err);
         }*/
-        /*StringBuilder afterStrBuilder = CompUnitSimplifyer.printUnit(compUnit);
+        /*StringBuilder afterStrBuilder = IR.CompUnitSimplifyer.printUnit(compUnit);
         System.out.println(afterStrBuilder);*/
         // System.out.println(compUnit);
     }

@@ -1,3 +1,5 @@
+package IR;
+
 import Symbols.SymbolTable;
 import Symbols.VarSymbol;
 import SyntaxClasses.ConstIntToken;

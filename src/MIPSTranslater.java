@@ -4,6 +4,7 @@ import IR.IRImmSymbol;
 import IR.IRLabelManager;
 import IR.IRLabelSymbol;
 import IR.IRSymbol;
+import IR.IRTranslater;
 import Symbols.VarSymbol;
 import SyntaxClasses.SyntaxClass;
 

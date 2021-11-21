@@ -1,3 +1,5 @@
+package IR;
+
 import IR.IRArrSymbol;
 import IR.IRElem;
 import IR.IRFuncSymbol;
