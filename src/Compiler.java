@@ -3,6 +3,7 @@ import Exceptions.SyntaxException;
 import IR.CompUnitSimplifyer;
 import IR.IRTranslater;
 import Optimizer.IROptimizer;
+import Optimizer.PrintOpt;
 import SyntaxClasses.SyntaxClass;
 import SyntaxClasses.Token;
 
@@ -16,21 +17,21 @@ import java.util.LinkedList;
 
 public class Compiler {
     public static void main(String[] argv) {
-        boolean isDebug = true;
+        boolean isDebug = false;
 
-        PrintStream ps = null;
+        /*PrintStream ps = null;
         try {
             ps = new PrintStream(new FileOutputStream("mips.txt"));
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
-        System.setOut(ps);
+        System.setOut(ps);*/
 
         ReadFile readFile;
         if (!isDebug) {
             readFile = new ReadFile("testfile.txt");
         } else {
-            readFile = new ReadFile("testfile3.txt");
+            readFile = new ReadFile("testfile6.txt");
         }
         LexicalAnalyzer lexicalAnalyzer = new LexicalAnalyzer();
         SyntaxAnalyzer syntaxAnalyzer = new SyntaxAnalyzer();
@@ -74,6 +75,8 @@ public class Compiler {
             }
         }
 
+        PrintOpt.emptyStrOpt(irTranslater);
+
         IROptimizer optimizer = new IROptimizer(irTranslater);
         optimizer.doOptimize();
         optimizer.basicBlockInit();
@@ -95,7 +98,15 @@ public class Compiler {
         MIPSTranslater mipsTranslater = new MIPSTranslater(irTranslater);
         StringBuilder mipsStr = mipsTranslater.iRTranslate();
 
-        System.out.println(mipsStr);
+        //System.out.println(mipsStr);
+        //StringBuilder irStr = irTranslater.outputIR();
+        File mipsFile = new File("mips.txt");
+        try {
+            FileOutputStream irOutput = new FileOutputStream(mipsFile);
+            irOutput.write(mipsStr.toString().getBytes());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
         //Collections.sort(errorList);
         /*for (Error err : errorList) {
             System.out.println(err);
