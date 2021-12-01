@@ -1,6 +1,9 @@
 package Optimizer.DAG;
 
+import IR.IRSymbol;
+
 import java.util.ArrayList;
+import java.util.HashSet;
 
 public class DAGNode {
     private int id;
@@ -8,6 +11,8 @@ public class DAGNode {
     private DAGNode rChild;
     private ArrayList<DAGNode> dependency;
     private int type;
+    private HashSet<DAGNode> inNodes;
+    private HashSet<IRSymbol> correspondingSymbols;
 
     public DAGNode(int id, int type) {
         this.type = type;
@@ -15,6 +20,19 @@ public class DAGNode {
         this.lChild = null;
         this.rChild = null;
         this.dependency = new ArrayList<>();
+        this.correspondingSymbols = new HashSet<>();
+    }
+
+    public void addSymbol(IRSymbol symbol) {
+        correspondingSymbols.add(symbol);
+    }
+
+    public void removeSymbol(IRSymbol symbol) {
+        correspondingSymbols.remove(symbol);
+    }
+
+    public HashSet<IRSymbol> getCorrespondingSymbols() {
+        return correspondingSymbols;
     }
 
     public void setLChild(DAGNode lChild) {
@@ -71,5 +89,13 @@ public class DAGNode {
         } else {
             return null;
         }
+    }
+
+    public ArrayList<DAGNode> getDependencyArr() {
+        return dependency;
+    }
+
+    public void setDependencyArr(ArrayList<DAGNode> dependencyArr) {
+        this.dependency = dependencyArr;
     }
 }

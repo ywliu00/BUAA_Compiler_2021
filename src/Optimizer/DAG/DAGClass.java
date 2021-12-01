@@ -1,10 +1,12 @@
 package Optimizer.DAG;
 
 import IR.IRElem;
+import IR.IRFuncSymbol;
 import IR.IRSymbol;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
 
 public class DAGClass {
@@ -17,6 +19,7 @@ public class DAGClass {
     private DAGNode blockEndNode;
     private LinkedList<DAGNode> ioList; // （可能的）IO操作列表，不可打乱
     private ArrayList<DAGNode> memList; // （可能的）内存操作列表，不可打乱
+    private HashSet<IRElem> labelSet;
 
     public DAGClass() {
         this.symbolMap = new HashMap<>();
@@ -27,6 +30,40 @@ public class DAGClass {
         this.blockEndNode = null;
         ioList = new LinkedList<>();
         memList = new ArrayList<>();
+        labelSet = new HashSet<>();
+    }
+
+    public void setSymbolMapRelation(IRSymbol symbol, DAGNode node) {
+        DAGNode formerNode = symbolMap.getOrDefault(symbol, null);
+        if (formerNode == node) {
+            return;
+        }
+        if (formerNode != null && formerNode.getType() != DAGClass.DAGLEAF) {
+            // LEAF节点就不改了，保证找的时候能找到就行
+            // TODO: 或者还是改一下？申请一个新符号来保存原始值
+            formerNode.removeSymbol(symbol);
+        }
+        symbolMap.put(symbol, node);
+    }
+
+    public DAGNode getBlockEndNode() {
+        return blockEndNode;
+    }
+
+    public DAGNode getSetRetNode() {
+        return setRetNode;
+    }
+
+    public ArrayList<DAGNode> getMemList() {
+        return memList;
+    }
+
+    public LinkedList<DAGNode> getIoList() {
+        return ioList;
+    }
+
+    public void addLabelInst(IRElem labelInst) {
+        labelSet.add(labelInst);
     }
 
     public void addReadMemNode(IRSymbol symbol, int type, DAGNode base, DAGNode offset) {
@@ -43,7 +80,7 @@ public class DAGClass {
             if (node.getType() == type) {
                 if (node.getLChild() == base && node.getRChild() == offset &&
                         node.getDependency1() == dependency) { // 需要所有依赖均相同！！
-                    symbolMap.put(symbol, node); // 找到匹配的公共表达式
+                    setSymbolMapRelation(symbol, node); // 找到匹配的公共表达式
                     found = true;
                     break;
                 }
@@ -55,7 +92,7 @@ public class DAGClass {
             readMemNode.setRChild(offset);
             readMemNode.setDependency1(dependency);
             allNodeList.add(readMemNode);
-            symbolMap.put(symbol, readMemNode);
+            setSymbolMapRelation(symbol, readMemNode);
             memList.add(readMemNode); // 内存访问列表中加入本次访问
         }
     }
@@ -86,8 +123,20 @@ public class DAGClass {
         memList.add(writeMemNode);
     }
 
-    public void addCallNode() {
-        // TODO: CALL Node
+    public void addCallNode(int type, IRSymbol symbol, IRFuncSymbol funcSymbol,
+                            ArrayList<DAGNode> paramList) {
+        DAGNode callNode = new DAGCallNode(nextId++, type, funcSymbol);
+        allNodeList.add(callNode);
+        setSymbolMapRelation(symbol, callNode);  // 返回值映射
+        callNode.setDependencyArr(paramList);
+        if (ioList.size() > 0) {
+            callNode.setLChild(ioList.getLast());
+        }
+        if (memList.size() > 0) {
+            callNode.setRChild(memList.get(memList.size() - 1));
+        }
+        ioList.add(callNode);
+        memList.add(callNode); // 保证IO和内存操作顺序
     }
 
     public void addOutputNode(int type, DAGNode lChild) {
@@ -103,7 +152,7 @@ public class DAGClass {
     public void addInputNode(IRSymbol symbol, int type) {
         DAGNode inputNode = new DAGNode(nextId++, type);
         allNodeList.add(inputNode);
-        symbolMap.put(symbol, inputNode);
+        setSymbolMapRelation(symbol, inputNode);
         if (!ioList.isEmpty()) {
             inputNode.setRChild(ioList.getLast()); // 设置前一个IO语句为其依赖
         }
@@ -114,10 +163,14 @@ public class DAGClass {
         DAGNode node = symbolMap.getOrDefault(symbol, null);
         if (node == null) {
             node = new DAGNode(nextId++, DAGClass.DAGLEAF);
-            symbolMap.put(symbol, node);
+            setSymbolMapRelation(symbol, node);
             allNodeList.add(node);
         }
         return node;
+    }
+
+    public DAGNode getNode(IRSymbol symbol) {
+        return symbolMap.getOrDefault(symbol, null);
     }
 
     public void addBlockEndNode(int type, DAGNode lChild, DAGNode rChild) {
@@ -137,7 +190,7 @@ public class DAGClass {
     }
 
     public void addNodeAttr(IRSymbol symbol, DAGNode node) {
-        symbolMap.put(symbol, node);
+        setSymbolMapRelation(symbol, node);
     }
 
     public DAGNode forcedAddMidNode(IRSymbol symbol, int type, DAGNode lChild,
@@ -145,7 +198,7 @@ public class DAGClass {
         DAGNode resNode = new DAGNode(nextId++, type);
         resNode.setLChild(lChild);
         resNode.setRChild(rChild);
-        symbolMap.put(symbol, resNode); // 新建公共表达式
+        setSymbolMapRelation(symbol, resNode); // 新建公共表达式
         allNodeList.add(resNode);
         return resNode;
     }
@@ -158,7 +211,7 @@ public class DAGClass {
             if (node.getType() == type) {
                 if ((node.getLChild() == lChild && node.getRChild() == rChild) ||
                         (swap && node.getLChild() == rChild && node.getRChild() == lChild)) {
-                    symbolMap.put(symbol, node); // 找到匹配的公共表达式
+                    setSymbolMapRelation(symbol, node); // 找到匹配的公共表达式
                     resNode = node;
                     found = true;
                     break;
@@ -169,7 +222,7 @@ public class DAGClass {
             resNode = new DAGNode(nextId++, type);
             resNode.setLChild(lChild);
             resNode.setRChild(rChild);
-            symbolMap.put(symbol, resNode); // 新建公共表达式
+            setSymbolMapRelation(symbol, resNode); // 新建公共表达式
             allNodeList.add(resNode);
         }
         return resNode;
@@ -183,7 +236,7 @@ public class DAGClass {
             if (node.getType() == type) {
                 if (node.getLChild() == lChild && node.getRChild() == rChild
                         && node.getDependency1() == tChild) {
-                    symbolMap.put(symbol, node); // 找到匹配的公共表达式
+                    setSymbolMapRelation(symbol, node); // 找到匹配的公共表达式
                     resNode = node;
                     found = true;
                     break;
@@ -195,7 +248,7 @@ public class DAGClass {
             resNode.setLChild(lChild);
             resNode.setRChild(rChild);
             resNode.setDependency1(tChild);
-            symbolMap.put(symbol, resNode); // 新建公共表达式
+            setSymbolMapRelation(symbol, resNode); // 新建公共表达式
             allNodeList.add(resNode);
         }
         return resNode;

@@ -1,6 +1,7 @@
 package Optimizer;
 
 import IR.IRElem;
+import IR.IRFuncSymbol;
 import IR.IRSymbol;
 import Optimizer.DAG.DAGClass;
 import Optimizer.DAG.DAGNode;
@@ -18,9 +19,12 @@ public class BasicBlock {
     private HashSet<IRSymbol> inSetLVA;
     private HashSet<IRSymbol> outSetLVA;
     private int blockID;
+    private DAGClass dag;
 
     private IRElem setRetInst; // 一个块内只有最后一条有效
-
+    private HashSet<IRElem> labelSet;
+    private IRElem funcInst; // 一个块内最多一个Func
+    private LinkedList<DAGNode> calculateList;
 
     public BasicBlock(int id) {
         this.blockID = id;
@@ -31,13 +35,16 @@ public class BasicBlock {
         this.outSetLVA = new HashSet<>();
 
         this.setRetInst = null;
+        this.funcInst = null;
+        this.labelSet = new HashSet<>();
+        this.calculateList = new LinkedList<>();
     }
 
     public void buildDAG() {
         DAGClass graph = new DAGClass();
         for (IRElem inst : iRList) {
             if (inst.getType() == IRElem.FUNC) {
-                continue;
+                funcInst = inst;
             } else if (inst.getType() == IRElem.ADD || inst.getType() == IRElem.MULT
                     || inst.getType() == IRElem.EQL || inst.getType() == IRElem.NEQ) { // 可交换
                 IRSymbol op1 = inst.getOp1();
@@ -112,11 +119,168 @@ public class BasicBlock {
                 IRSymbol op3 = inst.getOp3();
                 graph.addInputNode(op3, inst.getType());
             } else if (inst.getType() == IRElem.CALL) {
-                // TODO: CALL
+                IRSymbol op3 = inst.getOp3();
+                IRSymbol op1 = inst.getOp1();
+                ArrayList<IRSymbol> paramList = inst.getSymbolList();
+                ArrayList<DAGNode> paramNodeList = new ArrayList<>();
+                for (IRSymbol symbol : paramList) {
+                    DAGNode symbolNode = graph.getNodeOrCreateLeafNode(symbol);
+                    paramNodeList.add(symbolNode);
+                }
+                graph.addCallNode(inst.getType(), op3, (IRFuncSymbol) op1, paramNodeList);
             } else if (inst.getType() == IRElem.LABEL) {
-                // TODO: LABEL
+                graph.addLabelInst(inst);
+                labelSet.add(inst);
             }
         }
+        this.dag = graph;
+    }
+
+    public LinkedList<IRElem> reArrangeInstFromDAG() {
+        LinkedList<IRElem> instList;
+
+        HashSet<DAGNode> visited = new HashSet<>();
+        for (IRSymbol liveSymbol : outSetLVA) {
+            DAGNode node = dag.getNode(liveSymbol);
+            if (node != null && node.getType() != DAGClass.DAGLEAF) { // 能找到，被修改过
+                depthFirstSearch(node, visited);
+            }
+        }
+        LinkedList<DAGNode> ioList = dag.getIoList();
+        DAGNode ioLastNode;
+        if (!ioList.isEmpty()) { // 连通，找最后一个就行
+            ioLastNode = ioList.getLast();
+            if (!visited.contains(ioLastNode)) {
+                depthFirstSearch(ioLastNode, visited);
+            }
+        }
+        ArrayList<DAGNode> memList = dag.getMemList();
+        DAGNode memLastModifyNode = null;
+        for (int i = memList.size() - 1; i >= 0; i--) { // 连通，找最后一个就行
+            memLastModifyNode = memList.get(i);
+            if (memLastModifyNode.getType() != IRElem.LOAD) {
+                if (!visited.contains(memLastModifyNode)) {
+                    depthFirstSearch(memLastModifyNode, visited);
+                }
+                break;
+            }
+        }
+        if (dag.getSetRetNode() != null) { // setret语句
+            depthFirstSearch(dag.getSetRetNode(), visited);
+        }
+        if (dag.getBlockEndNode() != null) { // 块结束语句
+            depthFirstSearch(dag.getBlockEndNode(), visited);
+        }
+        // TODO:按顺序计算
+        for (DAGNode curNode : calculateList) {
+            if (curNode.getType() == IRElem.ADD || curNode.getType() == IRElem.MULT
+                    || curNode.getType() == IRElem.EQL || curNode.getType() == IRElem.NEQ) { // 可交换
+                IRSymbol op1 = curNode.getOp1();
+                IRSymbol op2 = curNode.getOp2(); // 操作数
+                IRSymbol op3 = curNode.getOp3(); // 运算结果
+                DAGNode node1 = graph.getNodeOrCreateLeafNode(op1);
+                DAGNode node2 = graph.getNodeOrCreateLeafNode(op2);
+                graph.addMidNode(op3, curNode.getType(), node1, node2, true);
+            } else if (curNode.getType() == IRElem.MINU || curNode.getType() == IRElem.DIV ||
+                    curNode.getType() == IRElem.MOD || curNode.getType() == IRElem.LSHIFT ||
+                    curNode.getType() == IRElem.RSHIFT || curNode.getType() == IRElem.GRE ||
+                    curNode.getType() == IRElem.GEQ || curNode.getType() == IRElem.LSS ||
+                    curNode.getType() == IRElem.LEQ) { // 不可交换
+                IRSymbol op1 = curNode.getOp1();
+                IRSymbol op2 = curNode.getOp2(); // 操作数
+                IRSymbol op3 = curNode.getOp3(); // 运算结果
+                DAGNode node1 = graph.getNodeOrCreateLeafNode(op1);
+                DAGNode node2 = graph.getNodeOrCreateLeafNode(op2);
+                graph.addMidNode(op3, curNode.getType(), node1, node2, false);
+            } else if (curNode.getType() == IRElem.ASSIGN) {
+                IRSymbol op1 = curNode.getOp1();
+                IRSymbol op3 = curNode.getOp3();
+                DAGNode node1 = graph.getNodeOrCreateLeafNode(op1);
+                if (node1.getType() == DAGClass.DAGLEAF) {
+                    graph.addMidNode(op3, curNode.getType(), node1, null, true);
+                } else {
+                    graph.addNodeAttr(op3, node1);
+                }
+            } else if (curNode.getType() == IRElem.SETRET) {
+                this.setRetInst = curNode;
+                IRSymbol opNum = curNode.getOp3();
+                DAGNode retNode = graph.getNodeOrCreateLeafNode(opNum);
+                graph.addSetRetNode(retNode);
+            } else if (curNode.getType() == IRElem.BR || curNode.getType() == IRElem.BZ ||
+                    curNode.getType() == IRElem.BNZ) {
+                IRSymbol op3 = curNode.getOp3();
+                DAGNode retLabel = graph.getNodeOrCreateLeafNode(op3);
+                DAGNode judgeValue = null;
+                if (curNode.getType() != IRElem.BR) {
+                    IRSymbol op1 = curNode.getOp1();
+                    judgeValue = graph.getNodeOrCreateLeafNode(op1);
+                }
+                graph.addBlockEndNode(curNode.getType(), retLabel, judgeValue);
+            } else if (curNode.getType() == IRElem.RET || curNode.getType() == IRElem.EXIT) {
+                graph.addBlockEndNode(curNode.getType(), null, null);
+            } else if (curNode.getType() == IRElem.LOAD) {
+                IRSymbol op1 = curNode.getOp1();
+                IRSymbol op2 = curNode.getOp2();
+                IRSymbol op3 = curNode.getOp3();
+                DAGNode base = graph.getNodeOrCreateLeafNode(op1);
+                DAGNode offset = graph.getNodeOrCreateLeafNode(op2);
+                graph.addReadMemNode(op3, curNode.getType(), base, offset);
+            } else if (curNode.getType() == IRElem.STORE) {
+                IRSymbol op1 = curNode.getOp1();
+                IRSymbol op2 = curNode.getOp2();
+                IRSymbol op3 = curNode.getOp3();
+                DAGNode value = graph.getNodeOrCreateLeafNode(op3);
+                DAGNode base = graph.getNodeOrCreateLeafNode(op1);
+                DAGNode offset = graph.getNodeOrCreateLeafNode(op2);
+                graph.addWriteMemNode(curNode.getType(), value, base, offset);
+            } else if (curNode.getType() == IRElem.ALLOCA) {
+                IRSymbol op1 = curNode.getOp1();
+                IRSymbol op3 = curNode.getOp3();
+                DAGNode size = graph.getNodeOrCreateLeafNode(op1);
+                graph.forcedAddMidNode(op3, curNode.getType(), size, null); // 申请空间不可以合并
+            } else if (curNode.getType() == IRElem.PRINTI ||
+                    curNode.getType() == IRElem.PRINTS) {
+                IRSymbol op3 = curNode.getOp3();
+                DAGNode outValue = graph.getNodeOrCreateLeafNode(op3);
+                graph.addOutputNode(curNode.getType(), outValue);
+            } else if (curNode.getType() == IRElem.GETINT) {
+                IRSymbol op3 = curNode.getOp3();
+                graph.addInputNode(op3, curNode.getType());
+            } else if (curNode.getType() == IRElem.CALL) {
+                IRSymbol op3 = curNode.getOp3();
+                IRSymbol op1 = curNode.getOp1();
+                ArrayList<IRSymbol> paramList = curNode.getSymbolList();
+                ArrayList<DAGNode> paramNodeList = new ArrayList<>();
+                for (IRSymbol symbol : paramList) {
+                    DAGNode symbolNode = graph.getNodeOrCreateLeafNode(symbol);
+                    paramNodeList.add(symbolNode);
+                }
+                graph.addCallNode(curNode.getType(), op3, (IRFuncSymbol) op1, paramNodeList);
+            } else if (curNode.getType() == IRElem.LABEL) {
+                graph.addLabelInst(curNode);
+                labelSet.add(curNode);
+            }
+        }
+    }
+
+    public void depthFirstSearch(DAGNode node, HashSet<DAGNode> visited) {
+        if (node == null || node.getType() == DAGClass.DAGLEAF || visited.contains(node)) {
+            return;
+        }
+        visited.add(node);
+        if (node.getLChild() != null) {
+            depthFirstSearch(node.getLChild(), visited);
+        }
+        if (node.getRChild() != null) {
+            depthFirstSearch(node.getRChild(), visited);
+        }
+        ArrayList<DAGNode> dependency = node.getDependencyArr();
+        for (DAGNode depNode : dependency) {
+            if (depNode != null && !visited.contains(depNode)) {
+                depthFirstSearch(depNode, visited);
+            }
+        }
+        calculateList.add(node);
     }
 
     public void setInSetLVA(HashSet<IRSymbol> inSetLVA) {
