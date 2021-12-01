@@ -3,7 +3,6 @@ import Exceptions.SyntaxException;
 import IR.CompUnitSimplifyer;
 import IR.IRTranslater;
 import Optimizer.IROptimizer;
-import Optimizer.PrintOpt;
 import SyntaxClasses.SyntaxClass;
 import SyntaxClasses.Token;
 
@@ -11,7 +10,6 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.PrintStream;
 import java.util.ArrayList;
 import java.util.LinkedList;
 
@@ -75,10 +73,8 @@ public class Compiler {
             }
         }
 
-        PrintOpt.emptyStrOpt(irTranslater);
-
         IROptimizer optimizer = new IROptimizer(irTranslater);
-        optimizer.doOptimize();
+        optimizer.doJumpOptimize();
         optimizer.basicBlockInit();
         if (isDebug) {
             //StringBuilder irStr = irTranslater.outputIR();

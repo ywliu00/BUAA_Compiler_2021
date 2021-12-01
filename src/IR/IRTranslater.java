@@ -395,7 +395,7 @@ public class IRTranslater {
                 lValVarSymbol = iRLabelManager.allocSymbol();
                 // TODO: 刚刚修改的LVal新申请符号时加入记录
                 curEnv.setVarRef(identSymbol, lValVarSymbol);
-            } else if( lValVarSymbol.isGlobal()){ // 全局变量，视作数组
+            } else if (lValVarSymbol.isGlobal()) { // 全局变量，视作数组
                 return new IRArrSymbol(lValVarSymbol, IRImmSymbol.ZERO);
             }
             return lValVarSymbol;
@@ -645,11 +645,13 @@ public class IRTranslater {
         if (((Token) sonList.get(1)).getTokenType() == Token.LSS) { // <
             eqElem = new IRElem(IRElem.LSS, resSymbol, relResSymbol, addResSymbol);
         } else if (((Token) sonList.get(1)).getTokenType() == Token.GRE) { // >
-            eqElem = new IRElem(IRElem.GRE, resSymbol, relResSymbol, addResSymbol);
+            //eqElem = new IRElem(IRElem.GRE, resSymbol, relResSymbol, addResSymbol);
+            eqElem = new IRElem(IRElem.LSS, resSymbol, addResSymbol, relResSymbol);
         } else if (((Token) sonList.get(1)).getTokenType() == Token.LEQ) { // <=
             eqElem = new IRElem(IRElem.LEQ, resSymbol, relResSymbol, addResSymbol);
         } else { // >=
-            eqElem = new IRElem(IRElem.GEQ, resSymbol, relResSymbol, addResSymbol);
+            //eqElem = new IRElem(IRElem.GEQ, resSymbol, relResSymbol, addResSymbol);
+            eqElem = new IRElem(IRElem.LEQ, resSymbol, addResSymbol, relResSymbol);
         }
         iRList.add(eqElem);
         return resSymbol;

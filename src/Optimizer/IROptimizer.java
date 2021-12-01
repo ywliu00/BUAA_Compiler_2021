@@ -19,6 +19,14 @@ public class IROptimizer {
         this.iRList = iRPackage.getIRList();
     }
 
+    public void doOptimize() {
+        PrintOpt.emptyStrOpt(iRPackage);
+        doJumpOptimize();
+        basicBlockInit();
+        LiveVarAnalysis liveVarAnalyzer = new LiveVarAnalysis(blockList);
+        liveVarAnalyzer.liveVarAnalysis();
+    }
+
     public void basicBlockInit() {
         ArrayList<Integer> breakPoint = buildBasicBlockBreakpoint();
         HashMap<Integer, Integer> labelBlockMap = buildBasicBlock(breakPoint);
@@ -130,7 +138,7 @@ public class IROptimizer {
         return breakPointList;
     }
 
-    public LinkedList<IRElem> doOptimize() {
+    public LinkedList<IRElem> doJumpOptimize() {
         JumpOpt jumpOptimizer = new JumpOpt(iRList);
         iRList = jumpOptimizer.doJumpOpt();
         return iRList;
