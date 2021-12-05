@@ -42,6 +42,10 @@ public class IRTranslater {
         mainFunc = null;
     }
 
+    public void setiRList(LinkedList<IRElem> iRList) {
+        this.iRList = iRList;
+    }
+
     public SyntaxClass getCompUnit() {
         return compUnit;
     }

@@ -13,6 +13,9 @@ public class DAGNode {
     private int type;
     private HashSet<DAGNode> inNodes;
     private HashSet<IRSymbol> correspondingSymbols;
+    private IRSymbol leafOldSymbol;
+    private IRSymbol leafRenameSymbol;
+    private IRSymbol chosenSymbol; // 导出代码时被选中的Symbol
 
     public DAGNode(int id, int type) {
         this.type = type;
@@ -21,6 +24,30 @@ public class DAGNode {
         this.rChild = null;
         this.dependency = new ArrayList<>();
         this.correspondingSymbols = new HashSet<>();
+        this.leafOldSymbol = null;
+        this.leafRenameSymbol = null;
+        this.chosenSymbol = null;
+    }
+
+    public void setChosenSymbol(IRSymbol chosenSymbol) {
+        this.chosenSymbol = chosenSymbol;
+    }
+
+    public IRSymbol getChosenSymbol() {
+        return chosenSymbol;
+    }
+
+    public void renameLeafSymbol(IRSymbol leafOldSymbol, IRSymbol leafRenameSymbol) {
+        this.leafRenameSymbol = leafRenameSymbol;
+        this.leafOldSymbol = leafOldSymbol;
+    }
+
+    public IRSymbol getLeafRenameSymbol() {
+        return leafRenameSymbol;
+    }
+
+    public IRSymbol getLeafOldSymbol() {
+        return leafOldSymbol;
     }
 
     public void addSymbol(IRSymbol symbol) {

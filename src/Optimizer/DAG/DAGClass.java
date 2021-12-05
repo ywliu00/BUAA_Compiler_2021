@@ -2,6 +2,8 @@ package Optimizer.DAG;
 
 import IR.IRElem;
 import IR.IRFuncSymbol;
+import IR.IRLabelManager;
+import IR.IRLabelSymbol;
 import IR.IRSymbol;
 
 import java.util.ArrayList;
@@ -20,6 +22,7 @@ public class DAGClass {
     private LinkedList<DAGNode> ioList; // （可能的）IO操作列表，不可打乱
     private ArrayList<DAGNode> memList; // （可能的）内存操作列表，不可打乱
     private HashSet<IRElem> labelSet;
+    private IRLabelManager irLabelManager;
 
     public DAGClass() {
         this.symbolMap = new HashMap<>();
@@ -31,19 +34,26 @@ public class DAGClass {
         ioList = new LinkedList<>();
         memList = new ArrayList<>();
         labelSet = new HashSet<>();
+        irLabelManager = IRLabelManager.getIRLabelManager();
     }
 
     public void setSymbolMapRelation(IRSymbol symbol, DAGNode node) {
         DAGNode formerNode = symbolMap.getOrDefault(symbol, null);
-        if (formerNode == node) {
+        if (formerNode == node) { // 找到原节点，删除原节点引用
             return;
         }
-        if (formerNode != null && formerNode.getType() != DAGClass.DAGLEAF) {
-            // LEAF节点就不改了，保证找的时候能找到就行
-            // TODO: 或者还是改一下？申请一个新符号来保存原始值
+        if (formerNode != null) {
+            // LEAF节点改一下？申请一个新符号来保存原始值
+            if (formerNode.getType() == DAGClass.DAGLEAF) {
+                IRLabelSymbol leafNewSymbol = irLabelManager.allocSymbol();
+                formerNode.renameLeafSymbol(symbol, leafNewSymbol); // 记录LEAF更名历史
+                formerNode.addSymbol(leafNewSymbol);
+                symbolMap.put(leafNewSymbol, formerNode);
+            }
             formerNode.removeSymbol(symbol);
         }
         symbolMap.put(symbol, node);
+        node.addSymbol(symbol);
     }
 
     public DAGNode getBlockEndNode() {
@@ -68,7 +78,7 @@ public class DAGClass {
 
     public void addReadMemNode(IRSymbol symbol, int type, DAGNode base, DAGNode offset) {
         DAGNode dependency = null;
-        for (int i = memList.size(); i >= 0; --i) {
+        for (int i = memList.size() - 1; i >= 0; --i) {
             if (memList.get(i).getType() != IRElem.LOAD) {
                 //readMemNode.setThirdChild(memList.get(i));
                 dependency = memList.get(i); // 设置上一次修改内存为其dependency

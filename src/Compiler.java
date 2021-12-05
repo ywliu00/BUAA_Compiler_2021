@@ -74,11 +74,10 @@ public class Compiler {
         }
 
         IROptimizer optimizer = new IROptimizer(irTranslater);
-        optimizer.doJumpOptimize();
-        optimizer.basicBlockInit();
+        optimizer.doOptimize();
         if (isDebug) {
             //StringBuilder irStr = irTranslater.outputIR();
-            StringBuilder irStr = optimizer.printBasicBlock();
+            StringBuilder irStr = optimizer.printBasicBlock(true);
             File irFile = new File("IR_Opt.txt");
             try {
                 FileOutputStream irOutput = new FileOutputStream(irFile);

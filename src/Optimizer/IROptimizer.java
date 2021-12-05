@@ -1,6 +1,7 @@
 package Optimizer;
 
 import IR.IRElem;
+import IR.IRSymbol;
 import IR.IRTranslater;
 
 import java.util.ArrayList;
@@ -25,6 +26,11 @@ public class IROptimizer {
         basicBlockInit();
         LiveVarAnalysis liveVarAnalyzer = new LiveVarAnalysis(blockList);
         liveVarAnalyzer.liveVarAnalysis();
+        for (BasicBlock block : blockList) {
+            block.buildDAG();
+            block.reArrangeInstFromDAG();
+        }
+        basicBlockToIRList();
     }
 
     public void basicBlockInit() {
@@ -138,13 +144,22 @@ public class IROptimizer {
         return breakPointList;
     }
 
+    public void basicBlockToIRList() {
+        LinkedList<IRElem> optedIRList = new LinkedList<>();
+        for (BasicBlock block : blockList) {
+            optedIRList.addAll(block.getBlockOptInstList());
+        }
+        iRList = optedIRList;
+        iRPackage.setiRList(optedIRList);
+    }
+
     public LinkedList<IRElem> doJumpOptimize() {
         JumpOpt jumpOptimizer = new JumpOpt(iRList);
         iRList = jumpOptimizer.doJumpOpt();
         return iRList;
     }
 
-    public StringBuilder printBasicBlock() {
+    public StringBuilder printBasicBlock(boolean isOpted) {
         StringBuilder outStr = new StringBuilder(".text:\n");
         for (BasicBlock block : blockList) {
             ArrayList<BasicBlock> predecessorList = block.getPredecessors();
@@ -153,13 +168,37 @@ public class IROptimizer {
                 outStr.append(block1.getBlockID()).append(" ");
             }
             outStr.append("\n");
-            for (IRElem inst : block.getBlockIRList()) {
+            LinkedList<IRElem> irList;
+            if (!isOpted){
+                irList = block.getBlockIRList();
+            } else {
+                irList = block.getBlockOptInstList();
+            }
+            for (IRElem inst : irList) {
                 outStr.append(inst).append("\n");
             }
             ArrayList<BasicBlock> successorList = block.getSuccessors();
             outStr.append("Successors: ");
             for (BasicBlock block1 : successorList) {
                 outStr.append(block1.getBlockID()).append(" ");
+            }
+            outStr.append("\n");
+            HashSet<IRSymbol> useSet = block.getUseSet();
+            outStr.append("use set: ");
+            for (IRSymbol symbol : useSet) {
+                outStr.append("#").append(symbol.getId()).append(' ');
+            }
+            outStr.append("\n");
+            HashSet<IRSymbol> defSet = block.getDefSet();
+            outStr.append("def set: ");
+            for (IRSymbol symbol : defSet) {
+                outStr.append("#").append(symbol.getId()).append(' ');
+            }
+            outStr.append("\n");
+            HashSet<IRSymbol> outSetLVA = block.getOutSetLVA();
+            outStr.append("LVA out set: ");
+            for (IRSymbol symbol : outSetLVA) {
+                outStr.append("#").append(symbol.getId()).append(' ');
             }
             outStr.append("\n\n");
         }

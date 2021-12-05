@@ -2,7 +2,9 @@ package Optimizer;
 
 import IR.IRElem;
 import IR.IRFuncSymbol;
+import IR.IRLabelManager;
 import IR.IRSymbol;
+import Optimizer.DAG.DAGCallNode;
 import Optimizer.DAG.DAGClass;
 import Optimizer.DAG.DAGNode;
 
@@ -25,6 +27,7 @@ public class BasicBlock {
     private HashSet<IRElem> labelSet;
     private IRElem funcInst; // 一个块内最多一个Func
     private LinkedList<DAGNode> calculateList;
+    private LinkedList<IRElem> blockOptInstList;
 
     public BasicBlock(int id) {
         this.blockID = id;
@@ -38,6 +41,7 @@ public class BasicBlock {
         this.funcInst = null;
         this.labelSet = new HashSet<>();
         this.calculateList = new LinkedList<>();
+        blockOptInstList = null;
     }
 
     public void buildDAG() {
@@ -137,12 +141,10 @@ public class BasicBlock {
     }
 
     public LinkedList<IRElem> reArrangeInstFromDAG() {
-        LinkedList<IRElem> instList;
-
         HashSet<DAGNode> visited = new HashSet<>();
         for (IRSymbol liveSymbol : outSetLVA) {
             DAGNode node = dag.getNode(liveSymbol);
-            if (node != null && node.getType() != DAGClass.DAGLEAF) { // 能找到，被修改过
+            if (node != null) { // 能找到，被修改过
                 depthFirstSearch(node, visited);
             }
         }
@@ -171,100 +173,257 @@ public class BasicBlock {
         if (dag.getBlockEndNode() != null) { // 块结束语句
             depthFirstSearch(dag.getBlockEndNode(), visited);
         }
+
+        LinkedList<IRElem> instList = new LinkedList<>();
+        IRLabelManager labelManager = IRLabelManager.getIRLabelManager();
+
         // TODO:按顺序计算
         for (DAGNode curNode : calculateList) {
-            if (curNode.getType() == IRElem.ADD || curNode.getType() == IRElem.MULT
-                    || curNode.getType() == IRElem.EQL || curNode.getType() == IRElem.NEQ) { // 可交换
-                IRSymbol op1 = curNode.getOp1();
-                IRSymbol op2 = curNode.getOp2(); // 操作数
-                IRSymbol op3 = curNode.getOp3(); // 运算结果
-                DAGNode node1 = graph.getNodeOrCreateLeafNode(op1);
-                DAGNode node2 = graph.getNodeOrCreateLeafNode(op2);
-                graph.addMidNode(op3, curNode.getType(), node1, node2, true);
-            } else if (curNode.getType() == IRElem.MINU || curNode.getType() == IRElem.DIV ||
+            if (curNode.getType() == DAGClass.DAGLEAF) { // 叶节点，检查是否有重命名
+                IRSymbol leafNewSymbol = curNode.getLeafRenameSymbol();
+                if (leafNewSymbol != null) { // 若有重命名，则加入一条赋值
+                    IRSymbol leafOldSymbol = curNode.getLeafOldSymbol();
+                    IRElem leafRenameAssign = new IRElem(IRElem.ASSIGN, leafNewSymbol, leafOldSymbol);
+                    instList.add(leafRenameAssign);
+                    curNode.setChosenSymbol(leafNewSymbol);
+                } else {
+                    for (IRSymbol symbol : curNode.getCorrespondingSymbols()) {
+                        curNode.setChosenSymbol(symbol); // 反正只有一个
+                    }
+                }
+            } else if (curNode.getType() == IRElem.ADD || curNode.getType() == IRElem.MULT ||
+                    curNode.getType() == IRElem.EQL || curNode.getType() == IRElem.NEQ ||
+                    curNode.getType() == IRElem.MINU || curNode.getType() == IRElem.DIV ||
                     curNode.getType() == IRElem.MOD || curNode.getType() == IRElem.LSHIFT ||
                     curNode.getType() == IRElem.RSHIFT || curNode.getType() == IRElem.GRE ||
                     curNode.getType() == IRElem.GEQ || curNode.getType() == IRElem.LSS ||
-                    curNode.getType() == IRElem.LEQ) { // 不可交换
-                IRSymbol op1 = curNode.getOp1();
-                IRSymbol op2 = curNode.getOp2(); // 操作数
-                IRSymbol op3 = curNode.getOp3(); // 运算结果
-                DAGNode node1 = graph.getNodeOrCreateLeafNode(op1);
-                DAGNode node2 = graph.getNodeOrCreateLeafNode(op2);
-                graph.addMidNode(op3, curNode.getType(), node1, node2, false);
-            } else if (curNode.getType() == IRElem.ASSIGN) {
-                IRSymbol op1 = curNode.getOp1();
-                IRSymbol op3 = curNode.getOp3();
-                DAGNode node1 = graph.getNodeOrCreateLeafNode(op1);
-                if (node1.getType() == DAGClass.DAGLEAF) {
-                    graph.addMidNode(op3, curNode.getType(), node1, null, true);
+                    curNode.getType() == IRElem.LEQ) { // 三地址计算
+                IRSymbol leftSymbol = curNode.getLChild().getChosenSymbol();
+                IRSymbol rightSymbol = curNode.getRChild().getChosenSymbol();
+                IRSymbol liveSymbol = null, deadSymbol = null;
+                HashSet<IRSymbol> liveSymbols = new HashSet<>();
+                for (IRSymbol symbol : curNode.getCorrespondingSymbols()) {
+                    if (outSetLVA.contains(symbol)) {
+                        liveSymbol = symbol;
+                        liveSymbols.add(symbol);
+                    } else {
+                        deadSymbol = symbol;
+                    }
+                }
+                IRSymbol resSymbol;
+                if (liveSymbol != null) {
+                    resSymbol = liveSymbol;
+                } else if (deadSymbol != null) {
+                    resSymbol = deadSymbol;
                 } else {
-                    graph.addNodeAttr(op3, node1);
+                    resSymbol = labelManager.allocSymbol();
+                }
+                curNode.setChosenSymbol(resSymbol);
+                IRElem nodeInst = new IRElem(curNode.getType(), resSymbol, leftSymbol, rightSymbol);
+                instList.add(nodeInst); // 计算指令
+                for (IRSymbol symbol : liveSymbols) { // 其它活跃变量赋值
+                    if (symbol != resSymbol) {
+                        nodeInst = new IRElem(IRElem.ASSIGN, symbol, resSymbol);
+                        instList.add(nodeInst);
+                    }
+                }
+            } else if (curNode.getType() == IRElem.ASSIGN) {
+                IRSymbol leftSymbol = curNode.getLChild().getChosenSymbol();
+                IRSymbol liveSymbol = null, deadSymbol = null;
+                HashSet<IRSymbol> liveSymbols = new HashSet<>();
+                for (IRSymbol symbol : curNode.getCorrespondingSymbols()) {
+                    if (outSetLVA.contains(symbol)) {
+                        liveSymbol = symbol;
+                        liveSymbols.add(symbol);
+                    } else {
+                        deadSymbol = symbol;
+                    }
+                }
+                IRSymbol resSymbol;
+                if (liveSymbol != null) {
+                    resSymbol = liveSymbol;
+                } else if (deadSymbol != null) {
+                    resSymbol = deadSymbol;
+                } else {
+                    resSymbol = labelManager.allocSymbol();
+                }
+                curNode.setChosenSymbol(resSymbol);
+                IRElem nodeInst = new IRElem(curNode.getType(), resSymbol, leftSymbol);
+                instList.add(nodeInst); // 计算指令
+                for (IRSymbol symbol : liveSymbols) { // 其它活跃变量赋值
+                    if (symbol != resSymbol) {
+                        nodeInst = new IRElem(IRElem.ASSIGN, symbol, resSymbol);
+                        instList.add(nodeInst);
+                    }
                 }
             } else if (curNode.getType() == IRElem.SETRET) {
-                this.setRetInst = curNode;
-                IRSymbol opNum = curNode.getOp3();
-                DAGNode retNode = graph.getNodeOrCreateLeafNode(opNum);
-                graph.addSetRetNode(retNode);
+                IRSymbol valueSymbol = curNode.getLChild().getChosenSymbol();
+                IRElem nodeInst = new IRElem(curNode.getType(), valueSymbol);
+                instList.add(nodeInst);
             } else if (curNode.getType() == IRElem.BR || curNode.getType() == IRElem.BZ ||
                     curNode.getType() == IRElem.BNZ) {
-                IRSymbol op3 = curNode.getOp3();
-                DAGNode retLabel = graph.getNodeOrCreateLeafNode(op3);
-                DAGNode judgeValue = null;
-                if (curNode.getType() != IRElem.BR) {
-                    IRSymbol op1 = curNode.getOp1();
-                    judgeValue = graph.getNodeOrCreateLeafNode(op1);
-                }
-                graph.addBlockEndNode(curNode.getType(), retLabel, judgeValue);
+                continue;
             } else if (curNode.getType() == IRElem.RET || curNode.getType() == IRElem.EXIT) {
-                graph.addBlockEndNode(curNode.getType(), null, null);
+                continue;
             } else if (curNode.getType() == IRElem.LOAD) {
-                IRSymbol op1 = curNode.getOp1();
-                IRSymbol op2 = curNode.getOp2();
-                IRSymbol op3 = curNode.getOp3();
-                DAGNode base = graph.getNodeOrCreateLeafNode(op1);
-                DAGNode offset = graph.getNodeOrCreateLeafNode(op2);
-                graph.addReadMemNode(op3, curNode.getType(), base, offset);
+                IRSymbol baseSymbol = curNode.getLChild().getChosenSymbol();
+                IRSymbol offsetSymbol = curNode.getRChild().getChosenSymbol();
+                IRSymbol liveSymbol = null, deadSymbol = null;
+                HashSet<IRSymbol> liveSymbols = new HashSet<>();
+                for (IRSymbol symbol : curNode.getCorrespondingSymbols()) {
+                    if (outSetLVA.contains(symbol)) {
+                        liveSymbol = symbol;
+                        liveSymbols.add(symbol);
+                    } else {
+                        deadSymbol = symbol;
+                    }
+                }
+                IRSymbol resSymbol;
+                if (liveSymbol != null) {
+                    resSymbol = liveSymbol;
+                } else if (deadSymbol != null) {
+                    resSymbol = deadSymbol;
+                } else {
+                    resSymbol = labelManager.allocSymbol();
+                }
+                curNode.setChosenSymbol(resSymbol);
+                IRElem nodeInst = new IRElem(curNode.getType(), resSymbol, baseSymbol, offsetSymbol);
+                instList.add(nodeInst); // 计算指令
+                for (IRSymbol symbol : liveSymbols) { // 其它活跃变量赋值
+                    if (symbol != resSymbol) {
+                        nodeInst = new IRElem(IRElem.ASSIGN, symbol, resSymbol);
+                        instList.add(nodeInst);
+                    }
+                }
             } else if (curNode.getType() == IRElem.STORE) {
-                IRSymbol op1 = curNode.getOp1();
-                IRSymbol op2 = curNode.getOp2();
-                IRSymbol op3 = curNode.getOp3();
-                DAGNode value = graph.getNodeOrCreateLeafNode(op3);
-                DAGNode base = graph.getNodeOrCreateLeafNode(op1);
-                DAGNode offset = graph.getNodeOrCreateLeafNode(op2);
-                graph.addWriteMemNode(curNode.getType(), value, base, offset);
+                IRSymbol valueSymbol = curNode.getLChild().getChosenSymbol();
+                IRSymbol baseSymbol = curNode.getRChild().getChosenSymbol();
+                IRSymbol offsetSymbol = curNode.getDependency1().getChosenSymbol();
+                IRElem nodeInst = new IRElem(curNode.getType(), valueSymbol, baseSymbol, offsetSymbol);
+                instList.add(nodeInst);
             } else if (curNode.getType() == IRElem.ALLOCA) {
-                IRSymbol op1 = curNode.getOp1();
-                IRSymbol op3 = curNode.getOp3();
-                DAGNode size = graph.getNodeOrCreateLeafNode(op1);
-                graph.forcedAddMidNode(op3, curNode.getType(), size, null); // 申请空间不可以合并
+                IRSymbol sizeSymbol = curNode.getLChild().getChosenSymbol();
+                IRSymbol liveSymbol = null, deadSymbol = null;
+                HashSet<IRSymbol> liveSymbols = new HashSet<>();
+                for (IRSymbol symbol : curNode.getCorrespondingSymbols()) {
+                    if (outSetLVA.contains(symbol)) {
+                        liveSymbol = symbol;
+                        liveSymbols.add(symbol);
+                    } else {
+                        deadSymbol = symbol;
+                    }
+                }
+                IRSymbol resSymbol;
+                if (liveSymbol != null) {
+                    resSymbol = liveSymbol;
+                } else if (deadSymbol != null) {
+                    resSymbol = deadSymbol;
+                } else {
+                    resSymbol = labelManager.allocSymbol();
+                }
+                curNode.setChosenSymbol(resSymbol);
+                IRElem nodeInst = new IRElem(curNode.getType(), resSymbol, sizeSymbol);
+                instList.add(nodeInst); // 计算指令
+                for (IRSymbol symbol : liveSymbols) { // 其它活跃变量赋值
+                    if (symbol != resSymbol) {
+                        nodeInst = new IRElem(IRElem.ASSIGN, symbol, resSymbol);
+                        instList.add(nodeInst);
+                    }
+                } // 申请空间不可以合并
             } else if (curNode.getType() == IRElem.PRINTI ||
                     curNode.getType() == IRElem.PRINTS) {
-                IRSymbol op3 = curNode.getOp3();
-                DAGNode outValue = graph.getNodeOrCreateLeafNode(op3);
-                graph.addOutputNode(curNode.getType(), outValue);
+                IRSymbol printContextSymbol = curNode.getLChild().getChosenSymbol();
+                IRElem nodeInst = new IRElem(curNode.getType(), printContextSymbol);
+                instList.add(nodeInst); // 指令
             } else if (curNode.getType() == IRElem.GETINT) {
-                IRSymbol op3 = curNode.getOp3();
-                graph.addInputNode(op3, curNode.getType());
-            } else if (curNode.getType() == IRElem.CALL) {
-                IRSymbol op3 = curNode.getOp3();
-                IRSymbol op1 = curNode.getOp1();
-                ArrayList<IRSymbol> paramList = curNode.getSymbolList();
-                ArrayList<DAGNode> paramNodeList = new ArrayList<>();
-                for (IRSymbol symbol : paramList) {
-                    DAGNode symbolNode = graph.getNodeOrCreateLeafNode(symbol);
-                    paramNodeList.add(symbolNode);
+                IRSymbol liveSymbol = null, deadSymbol = null;
+                HashSet<IRSymbol> liveSymbols = new HashSet<>();
+                for (IRSymbol symbol : curNode.getCorrespondingSymbols()) {
+                    if (outSetLVA.contains(symbol)) {
+                        liveSymbol = symbol;
+                        liveSymbols.add(symbol);
+                    } else {
+                        deadSymbol = symbol;
+                    }
                 }
-                graph.addCallNode(curNode.getType(), op3, (IRFuncSymbol) op1, paramNodeList);
-            } else if (curNode.getType() == IRElem.LABEL) {
-                graph.addLabelInst(curNode);
-                labelSet.add(curNode);
+                IRSymbol resSymbol;
+                if (liveSymbol != null) {
+                    resSymbol = liveSymbol;
+                } else if (deadSymbol != null) {
+                    resSymbol = deadSymbol;
+                } else {
+                    resSymbol = labelManager.allocSymbol();
+                }
+                curNode.setChosenSymbol(resSymbol);
+                IRElem nodeInst = new IRElem(curNode.getType(), resSymbol);
+                instList.add(nodeInst); // 计算
+                for (IRSymbol symbol : liveSymbols) { // 其它活跃变量赋值
+                    if (symbol != resSymbol) {
+                        nodeInst = new IRElem(IRElem.ASSIGN, symbol, resSymbol);
+                        instList.add(nodeInst);
+                    }
+                }
+            } else if (curNode.getType() == IRElem.CALL) {
+                IRFuncSymbol funcSymbol = ((DAGCallNode)curNode).getFuncSymbol();
+                IRSymbol liveSymbol = null, deadSymbol = null;
+                HashSet<IRSymbol> liveSymbols = new HashSet<>();
+                for (IRSymbol symbol : curNode.getCorrespondingSymbols()) {
+                    if (outSetLVA.contains(symbol)) {
+                        liveSymbol = symbol;
+                        liveSymbols.add(symbol);
+                    } else {
+                        deadSymbol = symbol;
+                    }
+                }
+                IRSymbol resSymbol;
+                if (liveSymbol != null) {
+                    resSymbol = liveSymbol;
+                } else if (deadSymbol != null) {
+                    resSymbol = deadSymbol;
+                } else {
+                    resSymbol = labelManager.allocSymbol();
+                }
+                curNode.setChosenSymbol(resSymbol);
+                ArrayList<DAGNode> dependencyArr = curNode.getDependencyArr();
+                ArrayList<IRSymbol> paramSymbol = new ArrayList<>();
+                for (DAGNode node : dependencyArr) {
+                    paramSymbol.add(node.getChosenSymbol());
+                }
+                IRElem callInst = new IRElem(IRElem.CALL, resSymbol, funcSymbol, paramSymbol);
+                instList.add(callInst);
             }
         }
+        DAGNode blockEndNode = dag.getBlockEndNode();
+        if (blockEndNode != null) {
+            IRSymbol addrSymbol = null;
+            DAGNode lChild = blockEndNode.getLChild();
+            if (lChild != null) {
+                addrSymbol = lChild.getChosenSymbol();
+            }
+            IRSymbol judgeSymbol = null;
+            DAGNode rChild = blockEndNode.getRChild();
+            if (rChild != null) {
+                judgeSymbol = rChild.getChosenSymbol();
+            }
+            IRElem nodeInst = new IRElem(blockEndNode.getType(), addrSymbol, judgeSymbol);
+            instList.add(nodeInst); // 指令
+        }
+        for (IRElem label : labelSet) {
+            instList.addFirst(label);
+        }
+        if (funcInst != null) {
+            instList.addFirst(funcInst);
+        }
+        blockOptInstList = instList;
+        return instList;
+    }
+
+    public LinkedList<IRElem> getBlockOptInstList() {
+        return blockOptInstList;
     }
 
     public void depthFirstSearch(DAGNode node, HashSet<DAGNode> visited) {
-        if (node == null || node.getType() == DAGClass.DAGLEAF || visited.contains(node)) {
+        if (node == null || visited.contains(node)) {
             return;
         }
         visited.add(node);

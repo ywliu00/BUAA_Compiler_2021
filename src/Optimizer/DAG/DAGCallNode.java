@@ -9,4 +9,8 @@ public class DAGCallNode extends DAGNode{
         super(id, type);
         this.funcSymbol = funcSymbol;
     }
+
+    public IRFuncSymbol getFuncSymbol() {
+        return funcSymbol;
+    }
 }
