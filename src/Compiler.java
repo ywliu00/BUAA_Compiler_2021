@@ -29,7 +29,7 @@ public class Compiler {
         if (!isDebug) {
             readFile = new ReadFile("testfile.txt");
         } else {
-            readFile = new ReadFile("testfile6.txt");
+            readFile = new ReadFile("A/testfile8.txt");
         }
         LexicalAnalyzer lexicalAnalyzer = new LexicalAnalyzer();
         SyntaxAnalyzer syntaxAnalyzer = new SyntaxAnalyzer();

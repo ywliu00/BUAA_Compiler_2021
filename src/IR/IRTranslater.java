@@ -841,9 +841,8 @@ public class IRTranslater {
                     iRList.add(endIfElem);
                 }
             } else if (firstItemToken.getTokenType() == Token.WHILETK) { // while (cond) stmt
-                IRSymbol startWhile = iRLabelManager.allocSymbol();
+                /*IRSymbol startWhile = iRLabelManager.allocSymbol();
                 IRSymbol endWhile = iRLabelManager.allocSymbol();
-                //curEnv.setCycleStartEnd(startWhile, endWhile);
                 SyntaxClass whileStmt = sonList.get(4);
                 whileStmt.getCurEnv().setCycleStartEnd(startWhile, endWhile);
                 IRElem startLabelElem = new IRElem(IRElem.LABEL, startWhile);
@@ -854,6 +853,31 @@ public class IRTranslater {
                 stmtTrans(whileStmt, true);
                 IRElem backToStartElem = new IRElem(IRElem.BR, startWhile);
                 iRList.add(backToStartElem);
+                IRElem endLabelElem = new IRElem(IRElem.LABEL, endWhile);
+                iRList.add(endLabelElem);*/
+
+                IRSymbol startWhile = iRLabelManager.allocSymbol();
+                IRSymbol stmtStartWhile = iRLabelManager.allocSymbol();
+                IRSymbol endWhile = iRLabelManager.allocSymbol();
+                SyntaxClass whileStmt = sonList.get(4);
+                whileStmt.getCurEnv().setCycleStartEnd(startWhile, endWhile);
+
+                IRElem startLabelElem = new IRElem(IRElem.LABEL, startWhile);
+                iRList.add(startLabelElem);
+
+                IRSymbol condFirstRes = condTrans(sonList.get(2));
+                IRElem condFirstJudge = new IRElem(IRElem.BZ, endWhile, condFirstRes);
+                iRList.add(condFirstJudge);
+
+                IRElem stmtStartLabelElem = new IRElem(IRElem.LABEL, stmtStartWhile);
+                iRList.add(stmtStartLabelElem);
+
+                stmtTrans(whileStmt, true);
+
+                IRSymbol condSecondRes = condTrans(sonList.get(2));
+                IRElem condSecondJudge = new IRElem(IRElem.BNZ, stmtStartWhile, condSecondRes);
+                iRList.add(condSecondJudge);
+
                 IRElem endLabelElem = new IRElem(IRElem.LABEL, endWhile);
                 iRList.add(endLabelElem);
             } else if (firstItemToken.getTokenType() == Token.BREAKTK) { // break

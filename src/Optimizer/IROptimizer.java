@@ -200,6 +200,12 @@ public class IROptimizer {
             for (IRSymbol symbol : outSetLVA) {
                 outStr.append("#").append(symbol.getId()).append(' ');
             }
+            outStr.append("\n");
+            HashSet<IRSymbol> inSetLVA = block.getInSetLVA();
+            outStr.append("LVA in set: ");
+            for (IRSymbol symbol : inSetLVA) {
+                outStr.append("#").append(symbol.getId()).append(' ');
+            }
             outStr.append("\n\n");
         }
         return outStr;

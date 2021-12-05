@@ -27,12 +27,12 @@ public class LiveVarAnalysis {
                 for (BasicBlock succBlock : curBlock.getSuccessors()) {
                     outSet.addAll(succBlock.getInSetLVA());
                 }
+                curBlock.setOutSetLVA(outSet);
                 HashSet<IRSymbol> inSet = new HashSet<>(outSet);
                 inSet.removeAll(curBlock.getDefSet());
                 inSet.addAll(curBlock.getUseSet());
                 if (!inSet.equals(curBlock.getInSetLVA())) { // 若有更新则in和out均更新
                     changed = true;
-                    curBlock.setOutSetLVA(outSet);
                     curBlock.setInSetLVA(inSet);
                 }
 
