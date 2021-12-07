@@ -57,8 +57,9 @@ public class MIPSTranslater {
                 this.curFunc = FunctionTemplate.GLOBAL;
             } else if (inst.getType() == IRElem.ADD || inst.getType() == IRElem.MINU ||
                     inst.getType() == IRElem.MULT || inst.getType() == IRElem.DIV ||
-                    inst.getType() == IRElem.MOD ||
+                    inst.getType() == IRElem.MOD || inst.getType() == IRElem.AND ||
                     inst.getType() == IRElem.LSHIFT || inst.getType() == IRElem.RSHIFT ||
+                    inst.getType() == IRElem.RASHIFT ||
                     inst.getType() == IRElem.GRE || inst.getType() == IRElem.GEQ ||
                     inst.getType() == IRElem.LSS || inst.getType() == IRElem.LEQ ||
                     inst.getType() == IRElem.EQL || inst.getType() == IRElem.NEQ ||
@@ -114,7 +115,8 @@ public class MIPSTranslater {
             } else if (inst.getType() == IRElem.ADD || inst.getType() == IRElem.MINU ||
                     inst.getType() == IRElem.MULT || inst.getType() == IRElem.DIV ||
                     inst.getType() == IRElem.MOD || inst.getType() == IRElem.LSHIFT ||
-                    inst.getType() == IRElem.RSHIFT) {
+                    inst.getType() == IRElem.RSHIFT || inst.getType() == IRElem.RASHIFT ||
+                    inst.getType() == IRElem.AND) {
                 outStr.append(arithmeticTranslate(inst));
             } else if (inst.getType() == IRElem.GRE || inst.getType() == IRElem.GEQ ||
                     inst.getType() == IRElem.LSS || inst.getType() == IRElem.LEQ ||
@@ -233,6 +235,12 @@ public class MIPSTranslater {
                 break;
             case IRElem.RSHIFT:
                 outInst.append("srlv $t0, $t1, $t2");
+                break;
+            case IRElem.RASHIFT:
+                outInst.append("srav $t0, $t1, $t2");
+                break;
+            case IRElem.AND:
+                outInst.append("and $t0, $t1, $t2");
                 break;
         }
         outInst.append("\n");

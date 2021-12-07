@@ -33,6 +33,9 @@ public class IROptimizer {
             block.reArrangeInstFromDAG();
         }
         basicBlockToIRList();
+        MultDivOpt multDivOpter = new MultDivOpt(iRPackage);
+        multDivOpter.powOfTwoOpt();
+        this.iRList = iRPackage.getIRList();
     }
 
     public void basicBlockInit() {
