@@ -83,7 +83,17 @@ public class IRElem {
         return symbolList;
     }
 
-    // public ArrayList<IRSymbol>
+    public void setOp1(IRSymbol op1) {
+        this.op1 = op1;
+    }
+
+    public void setOp2(IRSymbol op2) {
+        this.op2 = op2;
+    }
+
+    public void setOp3(IRSymbol op3) {
+        this.op3 = op3;
+    }
 
     @Override
     public String toString() {
@@ -116,7 +126,7 @@ public class IRElem {
         } else if (type == BZ) {
             return "BZ " + op3.toString() + " IF " + op1.toString() + " ZERO";
         } else if (type == BNZ) {
-            return "BZ " + op3.toString() + " IF " + op1.toString() + " NOT ZERO";
+            return "BNZ " + op3.toString() + " IF " + op1.toString() + " NOT ZERO";
         } else if (type == SETRET) {
             return "SETRET " + op3.toString();
         } else if (type == RET) {

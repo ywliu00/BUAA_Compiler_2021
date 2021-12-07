@@ -1,5 +1,6 @@
 package Optimizer.DAG;
 
+import IR.IRImmSymbol;
 import IR.IRSymbol;
 
 import java.util.ArrayList;
@@ -14,8 +15,10 @@ public class DAGNode {
     private HashSet<DAGNode> inNodes;
     private HashSet<IRSymbol> correspondingSymbols;
     private IRSymbol leafOldSymbol;
-    private IRSymbol leafRenameSymbol;
+    //private IRSymbol leafRenameSymbol;
     private IRSymbol chosenSymbol; // 导出代码时被选中的Symbol
+    private int immValue;
+    private boolean hasImmValue;
 
     public DAGNode(int id, int type) {
         this.type = type;
@@ -25,8 +28,17 @@ public class DAGNode {
         this.dependency = new ArrayList<>();
         this.correspondingSymbols = new HashSet<>();
         this.leafOldSymbol = null;
-        this.leafRenameSymbol = null;
+        //this.leafRenameSymbol = null;
         this.chosenSymbol = null;
+        this.hasImmValue = false;
+    }
+
+    public boolean nodeHasImmValue() {
+        return hasImmValue;
+    }
+
+    public int getImmValue() {
+        return immValue;
     }
 
     public void setChosenSymbol(IRSymbol chosenSymbol) {
@@ -37,14 +49,17 @@ public class DAGNode {
         return chosenSymbol;
     }
 
-    public void renameLeafSymbol(IRSymbol leafOldSymbol, IRSymbol leafRenameSymbol) {
+    /*public void renameLeafSymbol(IRSymbol leafRenameSymbol) {
         this.leafRenameSymbol = leafRenameSymbol;
+    }*/
+
+    public void setLeafOldSymbol(IRSymbol leafOldSymbol) {
         this.leafOldSymbol = leafOldSymbol;
     }
 
-    public IRSymbol getLeafRenameSymbol() {
+    /*public IRSymbol getLeafRenameSymbol() {
         return leafRenameSymbol;
-    }
+    }*/
 
     public IRSymbol getLeafOldSymbol() {
         return leafOldSymbol;
@@ -52,6 +67,10 @@ public class DAGNode {
 
     public void addSymbol(IRSymbol symbol) {
         correspondingSymbols.add(symbol);
+        if (symbol instanceof IRImmSymbol) {
+            hasImmValue = true;
+            immValue = ((IRImmSymbol) symbol).getValue();
+        }
     }
 
     public void removeSymbol(IRSymbol symbol) {

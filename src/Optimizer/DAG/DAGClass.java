@@ -44,12 +44,13 @@ public class DAGClass {
         }
         if (formerNode != null) {
             // LEAF节点改一下？申请一个新符号来保存原始值
-            if (formerNode.getType() == DAGClass.DAGLEAF) {
+            // LEAF节点的处理也留到导出代码时再进行
+            /*if (formerNode.getType() == DAGClass.DAGLEAF) {
                 IRLabelSymbol leafNewSymbol = irLabelManager.allocSymbol();
-                formerNode.renameLeafSymbol(symbol, leafNewSymbol); // 记录LEAF更名历史
+                formerNode.renameLeafSymbol(leafNewSymbol); // 记录LEAF更名历史
                 formerNode.addSymbol(leafNewSymbol);
                 symbolMap.put(leafNewSymbol, formerNode);
-            }
+            }*/
             formerNode.removeSymbol(symbol);
         }
         symbolMap.put(symbol, node);
@@ -88,8 +89,8 @@ public class DAGClass {
         boolean found = false;
         for (DAGNode node : allNodeList) {
             if (node.getType() == type) {
-                if (node.getLChild() == base && node.getRChild() == offset &&
-                        node.getDependency1() == dependency) { // 需要所有依赖均相同！！
+                if (nodeEqualJudge(node.getLChild(), base) && nodeEqualJudge(node.getRChild(), offset) &&
+                        nodeEqualJudge(node.getDependency1(), dependency)) { // 需要所有依赖均相同！！
                     setSymbolMapRelation(symbol, node); // 找到匹配的公共表达式
                     found = true;
                     break;
@@ -121,8 +122,8 @@ public class DAGClass {
         if (dependency != null) {
             // 连续对同一位置写入，中间没有可能的读取，则可以去掉上次写入
             if (dependency.getType() == IRElem.STORE) {
-                if (dependency.getRChild() == base &&
-                        dependency.getDependency1() == offset) { // 删去应被覆盖的写入
+                if (nodeEqualJudge(dependency.getRChild(), base) &&
+                        nodeEqualJudge(dependency.getDependency1(), offset)) { // 删去应被覆盖的写入
                     memList.remove(memList.size() - 1); // 在内存访问表中将冗余写入扔掉
                     allNodeList.remove(dependency); // 丢弃冗余写入
                     dependency = dependency.getDependency2(); // 当前写入的依赖更新
@@ -174,6 +175,7 @@ public class DAGClass {
         if (node == null) {
             node = new DAGNode(nextId++, DAGClass.DAGLEAF);
             setSymbolMapRelation(symbol, node);
+            node.setLeafOldSymbol(symbol);
             allNodeList.add(node);
         }
         return node;
@@ -213,14 +215,29 @@ public class DAGClass {
         return resNode;
     }
 
+    public boolean nodeEqualJudge(DAGNode node1, DAGNode node2) {
+        if (node1 == node2) {
+            return true;
+        }
+        if (node1 == null || node2 == null) {
+            return false;
+        }
+        if (node1.getType() == DAGLEAF && node2.getType() == DAGLEAF) {
+            if (node1.nodeHasImmValue() && node2.nodeHasImmValue()) {
+                return node1.getImmValue() == node2.getImmValue();
+            }
+        }
+        return false;
+    }
+
     public DAGNode addMidNode(IRSymbol symbol, int type, DAGNode lChild,
                               DAGNode rChild, boolean swap) {
         boolean found = false;
         DAGNode resNode = null;
         for (DAGNode node : allNodeList) {
             if (node.getType() == type) {
-                if ((node.getLChild() == lChild && node.getRChild() == rChild) ||
-                        (swap && node.getLChild() == rChild && node.getRChild() == lChild)) {
+                if ((nodeEqualJudge(node.getLChild(), lChild) && nodeEqualJudge(node.getRChild(), rChild)) ||
+                        (swap && nodeEqualJudge(node.getLChild(), rChild) && nodeEqualJudge(node.getRChild(), lChild))) {
                     setSymbolMapRelation(symbol, node); // 找到匹配的公共表达式
                     resNode = node;
                     found = true;

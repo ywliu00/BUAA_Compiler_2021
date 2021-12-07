@@ -72,11 +72,11 @@ public class BasicBlock {
                 IRSymbol op1 = inst.getOp1();
                 IRSymbol op3 = inst.getOp3();
                 DAGNode node1 = graph.getNodeOrCreateLeafNode(op1);
-                if (node1.getType() == DAGClass.DAGLEAF) {
+                /*if (node1.getType() == DAGClass.DAGLEAF) {
                     graph.addMidNode(op3, inst.getType(), node1, null, true);
-                } else {
-                    graph.addNodeAttr(op3, node1);
-                }
+                } else {*/
+                graph.addNodeAttr(op3, node1);
+                //}
             } else if (inst.getType() == IRElem.SETRET) {
                 this.setRetInst = inst;
                 IRSymbol opNum = inst.getOp3();
@@ -177,20 +177,39 @@ public class BasicBlock {
         LinkedList<IRElem> instList = new LinkedList<>();
         IRLabelManager labelManager = IRLabelManager.getIRLabelManager();
 
-        // TODO:按顺序计算
-        for (DAGNode curNode : calculateList) {
+        for (DAGNode curNode : calculateList) { // 最开始就确认所有叶节点变更名称情况
             if (curNode.getType() == DAGClass.DAGLEAF) { // 叶节点，检查是否有重命名
-                IRSymbol leafNewSymbol = curNode.getLeafRenameSymbol();
-                if (leafNewSymbol != null) { // 若有重命名，则加入一条赋值
+                //IRSymbol leafNewSymbol = curNode.getLeafRenameSymbol();
+                HashSet<IRSymbol> symbols = curNode.getCorrespondingSymbols();
+                if (!symbols.contains(curNode.getLeafOldSymbol())) { // 最开始的symbol被移除，有重命名，则加入一条赋值
                     IRSymbol leafOldSymbol = curNode.getLeafOldSymbol();
+                    IRSymbol leafNewSymbol = labelManager.allocSymbol();
                     IRElem leafRenameAssign = new IRElem(IRElem.ASSIGN, leafNewSymbol, leafOldSymbol);
                     instList.add(leafRenameAssign);
                     curNode.setChosenSymbol(leafNewSymbol);
                 } else {
                     for (IRSymbol symbol : curNode.getCorrespondingSymbols()) {
-                        curNode.setChosenSymbol(symbol); // 反正只有一个
+                        curNode.setChosenSymbol(curNode.getLeafOldSymbol()); // 最原本的那个
                     }
                 }
+            }
+        }
+        for (DAGNode curNode : calculateList) {
+            if (curNode.getType() == DAGClass.DAGLEAF) {
+                //HashSet<IRSymbol> liveSymbols = new HashSet<>();
+                for (IRSymbol symbol : curNode.getCorrespondingSymbols()) {
+                    if (outSetLVA.contains(symbol) && symbol != curNode.getChosenSymbol()) {
+                        IRElem nodeInst = new IRElem(IRElem.ASSIGN, symbol, curNode.getChosenSymbol());
+                        instList.add(nodeInst);
+                        //liveSymbols.add(symbol);
+                    }
+                }
+                /*for (IRSymbol symbol : liveSymbols) { // 其它活跃变量赋值
+                    if (symbol != curNode.getChosenSymbol()) {
+                        IRElem nodeInst = new IRElem(IRElem.ASSIGN, symbol, curNode.getChosenSymbol());
+                        instList.add(nodeInst);
+                    }
+                }*/
             } else if (curNode.getType() == IRElem.ADD || curNode.getType() == IRElem.MULT ||
                     curNode.getType() == IRElem.EQL || curNode.getType() == IRElem.NEQ ||
                     curNode.getType() == IRElem.MINU || curNode.getType() == IRElem.DIV ||
@@ -364,7 +383,7 @@ public class BasicBlock {
                     }
                 }
             } else if (curNode.getType() == IRElem.CALL) {
-                IRFuncSymbol funcSymbol = ((DAGCallNode)curNode).getFuncSymbol();
+                IRFuncSymbol funcSymbol = ((DAGCallNode) curNode).getFuncSymbol();
                 IRSymbol liveSymbol = null, deadSymbol = null;
                 HashSet<IRSymbol> liveSymbols = new HashSet<>();
                 for (IRSymbol symbol : curNode.getCorrespondingSymbols()) {
@@ -391,6 +410,13 @@ public class BasicBlock {
                 }
                 IRElem callInst = new IRElem(IRElem.CALL, resSymbol, funcSymbol, paramSymbol);
                 instList.add(callInst);
+                IRElem nodeInst;
+                for (IRSymbol symbol : liveSymbols) { // 其它活跃变量赋值
+                    if (symbol != resSymbol) {
+                        nodeInst = new IRElem(IRElem.ASSIGN, symbol, resSymbol);
+                        instList.add(nodeInst);
+                    }
+                }
             }
         }
         DAGNode blockEndNode = dag.getBlockEndNode();

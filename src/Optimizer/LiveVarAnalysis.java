@@ -99,6 +99,10 @@ public class LiveVarAnalysis {
                 useSet.add(op3);
             }
         } else if (inst.getType() == IRElem.CALL) {
+            IRSymbol op3 = inst.getOp3();
+            if ((op3 instanceof IRLabelSymbol) && !useSet.contains(op3)) {
+                defSet.add(op3);
+            }
             ArrayList<IRSymbol> symbolList = inst.getSymbolList();
             for (IRSymbol symbol : symbolList) {
                 if ((symbol instanceof IRLabelSymbol) && !defSet.contains(symbol)) {

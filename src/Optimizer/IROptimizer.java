@@ -24,6 +24,8 @@ public class IROptimizer {
         PrintOpt.emptyStrOpt(iRPackage);
         doJumpOptimize();
         basicBlockInit();
+        ConstSpread constSpread = new ConstSpread(blockList);
+        constSpread.doConstSpread();
         LiveVarAnalysis liveVarAnalyzer = new LiveVarAnalysis(blockList);
         liveVarAnalyzer.liveVarAnalysis();
         for (BasicBlock block : blockList) {
