@@ -4,6 +4,7 @@ import IR.IRElem;
 import IR.IRFuncSymbol;
 import IR.IRLabelManager;
 import IR.IRSymbol;
+import MIPSTranslatePackage.DefUseNetElem;
 import Optimizer.DAG.DAGCallNode;
 import Optimizer.DAG.DAGClass;
 import Optimizer.DAG.DAGNode;
@@ -18,8 +19,12 @@ public class BasicBlock {
     private HashSet<IRSymbol> useSet; // 活跃变量分析的use集合
     private HashSet<IRSymbol> defSet; // 活跃变量分析的def集合
     private LinkedList<IRElem> iRList; // 基本块指令序列
-    private HashSet<IRSymbol> inSetLVA;
-    private HashSet<IRSymbol> outSetLVA;
+    private HashSet<IRSymbol> inSetLVA; // 活跃变量分析的in集合
+    private HashSet<IRSymbol> outSetLVA; // 活跃变量分析的out集合
+    private HashSet<DefUseNetElem> genSet;
+    private HashSet<DefUseNetElem> killSet;
+    private HashSet<DefUseNetElem> inSetDG;
+    private HashSet<DefUseNetElem> outSetDG;
     private int blockID;
     private DAGClass dag;
 
@@ -495,6 +500,35 @@ public class BasicBlock {
     public void setUseAndDefSet(HashSet<IRSymbol> useSet, HashSet<IRSymbol> defSet) {
         this.useSet = useSet;
         this.defSet = defSet;
+    }
+
+    public void setInSetDG(HashSet<DefUseNetElem> inSetDG) {
+        this.inSetDG = inSetDG;
+    }
+
+    public void setOutSetDG(HashSet<DefUseNetElem> outSetDG) {
+        this.outSetDG = outSetDG;
+    }
+
+    public HashSet<DefUseNetElem> getInSetDG() {
+        return inSetDG;
+    }
+
+    public HashSet<DefUseNetElem> getOutSetDG() {
+        return outSetDG;
+    }
+
+    public HashSet<DefUseNetElem> getGenSet() {
+        return genSet;
+    }
+
+    public HashSet<DefUseNetElem> getKillSet() {
+        return killSet;
+    }
+
+    public void setGenKillSet(HashSet<DefUseNetElem> genSet, HashSet<DefUseNetElem> killSet) {
+        this.genSet = genSet;
+        this.killSet = killSet;
     }
 
     public int getBlockID() {

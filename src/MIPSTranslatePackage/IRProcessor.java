@@ -1,8 +1,9 @@
-package Optimizer;
+package MIPSTranslatePackage;
 
 import IR.IRElem;
-import IR.IRSymbol;
 import IR.IRTranslater;
+import Optimizer.BasicBlock;
+import Optimizer.LiveVarAnalysis;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -10,32 +11,22 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 
-public class IROptimizer {
+public class IRProcessor {
     private IRTranslater iRPackage;
     private LinkedList<IRElem> iRList;
     private ArrayList<BasicBlock> blockList;
 
-    public IROptimizer(IRTranslater iRPackage) {
+    public IRProcessor(IRTranslater iRPackage) {
         this.iRPackage = iRPackage;
         this.iRList = iRPackage.getIRList();
     }
 
-    public void doOptimize() {
-        PrintOpt.emptyStrOpt(iRPackage);
-        doJumpOptimize();
+    public void flushEnv() {
         basicBlockInit(iRList);
-        ConstSpread constSpread = new ConstSpread(blockList);
-        constSpread.doConstSpread();
         LiveVarAnalysis liveVarAnalyzer = new LiveVarAnalysis(blockList);
         liveVarAnalyzer.liveVarAnalysis();
-        for (BasicBlock block : blockList) {
-            block.buildDAG();
-            block.reArrangeInstFromDAG();
-        }
-        basicBlockToIRList();
-        MultDivOpt multDivOpter = new MultDivOpt(iRPackage);
-        multDivOpter.powOfTwoOpt();
-        this.iRList = iRPackage.getIRList();
+        DefUseAnalysis defUseAnalyzer = new DefUseAnalysis(blockList);
+        defUseAnalyzer.ArrDefAnalysis();
     }
 
     public void basicBlockInit(LinkedList<IRElem> iRList) {
@@ -158,63 +149,4 @@ public class IROptimizer {
         iRList = optedIRList;
         iRPackage.setiRList(optedIRList);
     }
-
-    public LinkedList<IRElem> doJumpOptimize() {
-        JumpOpt jumpOptimizer = new JumpOpt(iRList);
-        iRList = jumpOptimizer.doJumpOpt();
-        return iRList;
-    }
-
-    public StringBuilder printBasicBlock(boolean isOpted) {
-        StringBuilder outStr = new StringBuilder(".text:\n");
-        for (BasicBlock block : blockList) {
-            ArrayList<BasicBlock> predecessorList = block.getPredecessors();
-            outStr.append("Block ").append(block.getBlockID()).append(": Predecessors: ");
-            for (BasicBlock block1 : predecessorList) {
-                outStr.append(block1.getBlockID()).append(" ");
-            }
-            outStr.append("\n");
-            LinkedList<IRElem> irList;
-            if (!isOpted){
-                irList = block.getBlockIRList();
-            } else {
-                irList = block.getBlockOptInstList();
-            }
-            for (IRElem inst : irList) {
-                outStr.append(inst).append("\n");
-            }
-            ArrayList<BasicBlock> successorList = block.getSuccessors();
-            outStr.append("Successors: ");
-            for (BasicBlock block1 : successorList) {
-                outStr.append(block1.getBlockID()).append(" ");
-            }
-            outStr.append("\n");
-            HashSet<IRSymbol> useSet = block.getUseSet();
-            outStr.append("use set: ");
-            for (IRSymbol symbol : useSet) {
-                outStr.append("#").append(symbol.getId()).append(' ');
-            }
-            outStr.append("\n");
-            HashSet<IRSymbol> defSet = block.getDefSet();
-            outStr.append("def set: ");
-            for (IRSymbol symbol : defSet) {
-                outStr.append("#").append(symbol.getId()).append(' ');
-            }
-            outStr.append("\n");
-            HashSet<IRSymbol> outSetLVA = block.getOutSetLVA();
-            outStr.append("LVA out set: ");
-            for (IRSymbol symbol : outSetLVA) {
-                outStr.append("#").append(symbol.getId()).append(' ');
-            }
-            outStr.append("\n");
-            HashSet<IRSymbol> inSetLVA = block.getInSetLVA();
-            outStr.append("LVA in set: ");
-            for (IRSymbol symbol : inSetLVA) {
-                outStr.append("#").append(symbol.getId()).append(' ');
-            }
-            outStr.append("\n\n");
-        }
-        return outStr;
-    }
-
 }

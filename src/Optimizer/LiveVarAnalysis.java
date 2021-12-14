@@ -19,6 +19,9 @@ public class LiveVarAnalysis {
     public void liveVarAnalysis() { // 活跃变量分析
         blockSetCal(); // 先计算use和def集合
         boolean changed = true;
+        for (BasicBlock block : blockList) { // 全部置空
+            block.setInSetLVA(new HashSet<>());
+        }
         while (changed) {
             changed = false;
             for (int i = blockList.size() - 1; i >= 0; i--) {
