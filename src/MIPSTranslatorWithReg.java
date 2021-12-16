@@ -169,11 +169,16 @@ public class MIPSTranslatorWithReg {
                     inst.getType() == IRElem.BNZ || inst.getType() == IRElem.SETRET ||
                     inst.getType() == IRElem.RET || inst.getType() == IRElem.CALL ||
                     inst.getType() == IRElem.EXIT) {
-                if (i == nextEnd - 1 && inst.getType() != IRElem.EXIT) {
+                if (i == nextEnd - 1 && (inst.getType() != IRElem.EXIT && inst.getType() != IRElem.CALL &&
+                        inst.getType() != IRElem.SETRET)) {
                     outStr.append(flushRegPool());
                     nextEnd = breakpointList.get(++blockID);
                 }
                 outStr.append(controlTranslate(inst, i, nextEnd));
+                if (i == nextEnd - 1 && (inst.getType() == IRElem.CALL || inst.getType() == IRElem.SETRET)) {
+                    outStr.append(flushRegPool());
+                    nextEnd = breakpointList.get(++blockID);
+                }
                 if (inst.getType() == IRElem.RET || inst.getType() == IRElem.EXIT) {
                     curFunc = FunctionTemplate.GLOBAL;
                 }
@@ -193,9 +198,7 @@ public class MIPSTranslatorWithReg {
                 }
             } else if (inst.getType() == IRElem.LABEL) {
                 outStr.append("L").append(inst.getOp3().getId()).append(":\n");
-                if (inst.getOp3().getId() == 52) {
-                    System.out.println("你在演我");
-                }
+
             }
         }
         return outStr;

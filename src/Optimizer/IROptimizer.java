@@ -1,6 +1,7 @@
 package Optimizer;
 
 import IR.IRElem;
+import IR.IRImmSymbol;
 import IR.IRSymbol;
 import IR.IRTranslater;
 import MIPSTranslatePackage.DefUseNetElem;
@@ -23,7 +24,7 @@ public class IROptimizer {
 
     public void doOptimize() {
         PrintOpt.emptyStrOpt(iRPackage);
-        for (int i = 0; i < 3; i++) {
+        for (int i = 0; i < 5; i++) {
             doJumpOptimize();
             basicBlockInit(iRList);
             ConstSpread constSpread = new ConstSpread(blockList);
@@ -44,6 +45,7 @@ public class IROptimizer {
             } else {
                 this.iRList = iRPackage.getIRList();
             }
+            constInstCal();
         }
     }
 
@@ -172,6 +174,121 @@ public class IROptimizer {
         JumpOpt jumpOptimizer = new JumpOpt(iRList);
         iRList = jumpOptimizer.doJumpOpt();
         return iRList;
+    }
+
+    public void constInstCal() {
+        for (int i = 0; i < iRList.size(); i++) {
+            IRElem inst = iRList.get(i);
+            if (inst.getType() == IRElem.ADD) {
+                if (inst.getOp1() instanceof IRImmSymbol && inst.getOp2() instanceof IRImmSymbol) {
+                    iRList.set(i, new IRElem(IRElem.ASSIGN, inst.getOp3(),
+                            new IRImmSymbol(((IRImmSymbol) inst.getOp1()).getValue() +
+                                    ((IRImmSymbol) inst.getOp2()).getValue())));
+                }
+            } else if (inst.getType() == IRElem.MINU) {
+                if (inst.getOp1() instanceof IRImmSymbol && inst.getOp2() instanceof IRImmSymbol) {
+                    iRList.set(i, new IRElem(IRElem.ASSIGN, inst.getOp3(),
+                            new IRImmSymbol(((IRImmSymbol) inst.getOp1()).getValue() -
+                                    ((IRImmSymbol) inst.getOp2()).getValue())));
+                }
+            } else if (inst.getType() == IRElem.MULT) {
+                if (inst.getOp1() instanceof IRImmSymbol && inst.getOp2() instanceof IRImmSymbol) {
+                    iRList.set(i, new IRElem(IRElem.ASSIGN, inst.getOp3(),
+                            new IRImmSymbol(((IRImmSymbol) inst.getOp1()).getValue() *
+                                    ((IRImmSymbol) inst.getOp2()).getValue())));
+                }
+            } else if (inst.getType() == IRElem.DIV) {
+                if (inst.getOp1() instanceof IRImmSymbol && inst.getOp2() instanceof IRImmSymbol) {
+                    iRList.set(i, new IRElem(IRElem.ASSIGN, inst.getOp3(),
+                            new IRImmSymbol(((IRImmSymbol) inst.getOp1()).getValue() /
+                                    ((IRImmSymbol) inst.getOp2()).getValue())));
+                }
+            } else if (inst.getType() == IRElem.MOD) {
+                if (inst.getOp1() instanceof IRImmSymbol && inst.getOp2() instanceof IRImmSymbol) {
+                    iRList.set(i, new IRElem(IRElem.ASSIGN, inst.getOp3(),
+                            new IRImmSymbol(((IRImmSymbol) inst.getOp1()).getValue() %
+                                    ((IRImmSymbol) inst.getOp2()).getValue())));
+                }
+            } else if (inst.getType() == IRElem.LSHIFT) {
+                if (inst.getOp1() instanceof IRImmSymbol && inst.getOp2() instanceof IRImmSymbol) {
+                    iRList.set(i, new IRElem(IRElem.ASSIGN, inst.getOp3(),
+                            new IRImmSymbol(((IRImmSymbol) inst.getOp1()).getValue() <<
+                                    ((IRImmSymbol) inst.getOp2()).getValue())));
+                }
+            } else if (inst.getType() == IRElem.RSHIFT) {
+                if (inst.getOp1() instanceof IRImmSymbol && inst.getOp2() instanceof IRImmSymbol) {
+                    iRList.set(i, new IRElem(IRElem.ASSIGN, inst.getOp3(),
+                            new IRImmSymbol(((IRImmSymbol) inst.getOp1()).getValue() >>
+                                    ((IRImmSymbol) inst.getOp2()).getValue())));
+                }
+            } else if (inst.getType() == IRElem.RASHIFT) {
+                if (inst.getOp1() instanceof IRImmSymbol && inst.getOp2() instanceof IRImmSymbol) {
+                    iRList.set(i, new IRElem(IRElem.ASSIGN, inst.getOp3(),
+                            new IRImmSymbol(((IRImmSymbol) inst.getOp1()).getValue() >>>
+                                    ((IRImmSymbol) inst.getOp2()).getValue())));
+                }
+            } else if (inst.getType() == IRElem.AND) {
+                if (inst.getOp1() instanceof IRImmSymbol && inst.getOp2() instanceof IRImmSymbol) {
+                    iRList.set(i, new IRElem(IRElem.ASSIGN, inst.getOp3(),
+                            new IRImmSymbol(((IRImmSymbol) inst.getOp1()).getValue() &
+                                    ((IRImmSymbol) inst.getOp2()).getValue())));
+                }
+            } else if (inst.getType() == IRElem.GRE) {
+                if (inst.getOp1() instanceof IRImmSymbol && inst.getOp2() instanceof IRImmSymbol) {
+                    int res = 0;
+                    if (((IRImmSymbol) inst.getOp1()).getValue() > ((IRImmSymbol) inst.getOp2()).getValue()) {
+                        res = 1;
+                    }
+                    iRList.set(i, new IRElem(IRElem.ASSIGN, inst.getOp3(),
+                            new IRImmSymbol(res)));
+                }
+            } else if (inst.getType() == IRElem.GEQ) {
+                if (inst.getOp1() instanceof IRImmSymbol && inst.getOp2() instanceof IRImmSymbol) {
+                    int res = 0;
+                    if (((IRImmSymbol) inst.getOp1()).getValue() >= ((IRImmSymbol) inst.getOp2()).getValue()) {
+                        res = 1;
+                    }
+                    iRList.set(i, new IRElem(IRElem.ASSIGN, inst.getOp3(),
+                            new IRImmSymbol(res)));
+                }
+            } else if (inst.getType() == IRElem.LSS) {
+                if (inst.getOp1() instanceof IRImmSymbol && inst.getOp2() instanceof IRImmSymbol) {
+                    int res = 0;
+                    if (((IRImmSymbol) inst.getOp1()).getValue() < ((IRImmSymbol) inst.getOp2()).getValue()) {
+                        res = 1;
+                    }
+                    iRList.set(i, new IRElem(IRElem.ASSIGN, inst.getOp3(),
+                            new IRImmSymbol(res)));
+                }
+            } else if (inst.getType() == IRElem.LEQ) {
+                if (inst.getOp1() instanceof IRImmSymbol && inst.getOp2() instanceof IRImmSymbol) {
+                    int res = 0;
+                    if (((IRImmSymbol) inst.getOp1()).getValue() <= ((IRImmSymbol) inst.getOp2()).getValue()) {
+                        res = 1;
+                    }
+                    iRList.set(i, new IRElem(IRElem.ASSIGN, inst.getOp3(),
+                            new IRImmSymbol(res)));
+                }
+            } else if (inst.getType() == IRElem.EQL) {
+                if (inst.getOp1() instanceof IRImmSymbol && inst.getOp2() instanceof IRImmSymbol) {
+                    int res = 0;
+                    if (((IRImmSymbol) inst.getOp1()).getValue() == ((IRImmSymbol) inst.getOp2()).getValue()) {
+                        res = 1;
+                    }
+                    iRList.set(i, new IRElem(IRElem.ASSIGN, inst.getOp3(),
+                            new IRImmSymbol(res)));
+                }
+            } else if (inst.getType() == IRElem.NEQ) {
+                if (inst.getOp1() instanceof IRImmSymbol && inst.getOp2() instanceof IRImmSymbol) {
+                    int res = 0;
+                    if (((IRImmSymbol) inst.getOp1()).getValue() != ((IRImmSymbol) inst.getOp2()).getValue()) {
+                        res = 1;
+                    }
+                    iRList.set(i, new IRElem(IRElem.ASSIGN, inst.getOp3(),
+                            new IRImmSymbol(res)));
+                }
+            }
+        }
     }
 
     public ArrayList<BasicBlock> getBlockList() {
