@@ -587,14 +587,20 @@ public class MIPSTranslatorWithReg {
         }
         switch (arthInst.getType()) {
             case IRElem.ADD:
-                outInst.append("addiu $" + op3Reg + ", $" + op1Reg + ", " + op2Value);
+                if (!op3Reg.equals(op1Reg) || op2Value != 0) {
+                    outInst.append("addiu $" + op3Reg + ", $" + op1Reg + ", " + op2Value);
+                }
                 break;
             case IRElem.MINU:
-                outInst.append("subiu $" + op3Reg + ", $" + op1Reg + ", " + op2Value);
+                if (!op3Reg.equals(op1Reg) || op2Value != 0) {
+                    outInst.append("subiu $" + op3Reg + ", $" + op1Reg + ", " + op2Value);
+                }
                 break;
             case IRElem.MULT:
                 if (op2Value == 0) {
                     outInst.append("li $" + op3Reg + ", 0\n");
+                } else if (op2Value == 1) {
+                    outInst.append("move $" + op3Reg + ", " + op1Reg + "\n");
                 } else {
                     outInst.append("li $" + immReg + ", " + op2Value + "\n");
                     outInst.append("mult $" + op1Reg + ", $" + immReg + "\n");
@@ -602,9 +608,13 @@ public class MIPSTranslatorWithReg {
                 }
                 break;
             case IRElem.DIV:
-                outInst.append("li $" + immReg + ", " + op2Value + "\n");
-                outInst.append("div $" + op1Reg + ", $" + immReg + "\n");
-                outInst.append("mflo $" + op3Reg);
+                if (op2Value == 1) {
+                    outInst.append("move $" + op3Reg + ", " + op1Reg + "\n");
+                } else {
+                    outInst.append("li $" + immReg + ", " + op2Value + "\n");
+                    outInst.append("div $" + op1Reg + ", $" + immReg + "\n");
+                    outInst.append("mflo $" + op3Reg);
+                }
                 break;
             case IRElem.MOD:
                 outInst.append("li $" + immReg + ", " + op2Value + "\n");
