@@ -41,6 +41,12 @@ public class BasicBlock {
         this.iRList = new LinkedList<>();
         this.inSetLVA = new HashSet<>();
         this.outSetLVA = new HashSet<>();
+        this.defSet = new HashSet<>();
+        this.useSet = new HashSet<>();
+        this.genSet = new HashSet<>();
+        this.killSet = new HashSet<>();
+        this.inSetDG = new HashSet<>();
+        this.outSetDG = new HashSet<>();
 
         this.setRetInst = null;
         this.funcInst = null;
@@ -55,7 +61,8 @@ public class BasicBlock {
             if (inst.getType() == IRElem.FUNC) {
                 funcInst = inst;
             } else if (inst.getType() == IRElem.ADD || inst.getType() == IRElem.MULT
-                    || inst.getType() == IRElem.EQL || inst.getType() == IRElem.NEQ) { // 可交换
+                    || inst.getType() == IRElem.EQL || inst.getType() == IRElem.NEQ ||
+                    inst.getType() == IRElem.AND) { // 可交换
                 IRSymbol op1 = inst.getOp1();
                 IRSymbol op2 = inst.getOp2(); // 操作数
                 IRSymbol op3 = inst.getOp3(); // 运算结果
@@ -66,7 +73,7 @@ public class BasicBlock {
                     inst.getType() == IRElem.MOD || inst.getType() == IRElem.LSHIFT ||
                     inst.getType() == IRElem.RSHIFT || inst.getType() == IRElem.GRE ||
                     inst.getType() == IRElem.GEQ || inst.getType() == IRElem.LSS ||
-                    inst.getType() == IRElem.LEQ) { // 不可交换
+                    inst.getType() == IRElem.LEQ || inst.getType() == IRElem.RASHIFT) { // 不可交换
                 IRSymbol op1 = inst.getOp1();
                 IRSymbol op2 = inst.getOp2(); // 操作数
                 IRSymbol op3 = inst.getOp3(); // 运算结果
@@ -221,7 +228,8 @@ public class BasicBlock {
                     curNode.getType() == IRElem.MOD || curNode.getType() == IRElem.LSHIFT ||
                     curNode.getType() == IRElem.RSHIFT || curNode.getType() == IRElem.GRE ||
                     curNode.getType() == IRElem.GEQ || curNode.getType() == IRElem.LSS ||
-                    curNode.getType() == IRElem.LEQ) { // 三地址计算
+                    curNode.getType() == IRElem.LEQ || curNode.getType() == IRElem.RASHIFT ||
+                    curNode.getType() == IRElem.AND) { // 三地址计算
                 IRSymbol leftSymbol = curNode.getLChild().getChosenSymbol();
                 IRSymbol rightSymbol = curNode.getRChild().getChosenSymbol();
                 IRSymbol liveSymbol = null, deadSymbol = null;

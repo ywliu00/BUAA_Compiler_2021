@@ -27,6 +27,12 @@ public class IRProcessor {
         liveVarAnalyzer.liveVarAnalysis();
         DefUseAnalysis defUseAnalyzer = new DefUseAnalysis(blockList);
         defUseAnalyzer.ArrDefAnalysis();
+        ArrDefNet netProcessor = new ArrDefNet(blockList, defUseAnalyzer);
+        netProcessor.buildNet();
+        netProcessor.netVarRename();
+        basicBlockToIRList();
+        liveVarAnalyzer = new LiveVarAnalysis(blockList);
+        liveVarAnalyzer.liveVarAnalysis();
     }
 
     public void basicBlockInit(LinkedList<IRElem> iRList) {
@@ -144,9 +150,13 @@ public class IRProcessor {
     public void basicBlockToIRList() {
         LinkedList<IRElem> optedIRList = new LinkedList<>();
         for (BasicBlock block : blockList) {
-            optedIRList.addAll(block.getBlockOptInstList());
+            optedIRList.addAll(block.getBlockIRList());
         }
         iRList = optedIRList;
         iRPackage.setiRList(optedIRList);
+    }
+
+    public ArrayList<BasicBlock> getBlockList() {
+        return blockList;
     }
 }

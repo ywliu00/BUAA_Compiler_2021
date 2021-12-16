@@ -2,6 +2,7 @@ import Exceptions.LexicalException;
 import Exceptions.SyntaxException;
 import IR.CompUnitSimplifyer;
 import IR.IRTranslater;
+import MIPSTranslatePackage.IRProcessor;
 import Optimizer.IROptimizer;
 import SyntaxClasses.SyntaxClass;
 import SyntaxClasses.Token;
@@ -29,7 +30,7 @@ public class Compiler {
         if (!isDebug) {
             readFile = new ReadFile("testfile.txt");
         } else {
-            readFile = new ReadFile("testfile5.txt");
+            readFile = new ReadFile("C/testfile28.txt");
         }
         LexicalAnalyzer lexicalAnalyzer = new LexicalAnalyzer();
         SyntaxAnalyzer syntaxAnalyzer = new SyntaxAnalyzer();
@@ -61,7 +62,7 @@ public class Compiler {
         irTranslater.compUnitTrans();
 
         if (isDebug) {
-            StringBuilder irStr = irTranslater.outputIR();
+            StringBuilder irStr = irTranslater.outputIR(irTranslater.getIRList());
             File irFile = new File("IR.txt");
             try {
                 FileOutputStream irOutput = new FileOutputStream(irFile);
@@ -75,9 +76,24 @@ public class Compiler {
 
         IROptimizer optimizer = new IROptimizer(irTranslater);
         optimizer.doOptimize();
+
+
         if (isDebug) {
             //StringBuilder irStr = irTranslater.outputIR();
-            StringBuilder irStr = optimizer.printBasicBlock(true);
+            StringBuilder irStr = optimizer.printBasicBlock(true, optimizer.getBlockList());
+            File irFile = new File("IR_Opt_Block.txt");
+            try {
+                FileOutputStream irOutput = new FileOutputStream(irFile);
+                irOutput.write(irStr.toString().getBytes());
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        if (isDebug) {
+            StringBuilder irStr = irTranslater.outputIR(irTranslater.getIRList());
             File irFile = new File("IR_Opt.txt");
             try {
                 FileOutputStream irOutput = new FileOutputStream(irFile);
@@ -89,8 +105,36 @@ public class Compiler {
             }
         }
 
+        /*IRProcessor irProcessor = new IRProcessor(irTranslater);
+        irProcessor.flushEnv();
+        if (isDebug) {
+            StringBuilder processedStr = optimizer.printBasicBlock(false, irProcessor.getBlockList());
+            File irFile2 = new File("IR_Opt_processed.txt");
+            try {
+                FileOutputStream irOutput = new FileOutputStream(irFile2);
+                irOutput.write(processedStr.toString().getBytes());
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
 
-        MIPSTranslater mipsTranslater = new MIPSTranslater(irTranslater);
+            StringBuilder irStr = irTranslater.outputIR(irTranslater.getIRList());
+            File irFile = new File("finalIR.txt");
+            try {
+                FileOutputStream irOutput = new FileOutputStream(irFile);
+                irOutput.write(irStr.toString().getBytes());
+                irOutput.close();
+            } catch (FileNotFoundException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+        }*/
+
+        //MIPSTranslater mipsTranslater = new MIPSTranslater(irTranslater);
+        MIPSTranslatorWithReg mipsTranslater = new MIPSTranslatorWithReg(irTranslater);
         StringBuilder mipsStr = mipsTranslater.iRTranslate();
 
         //System.out.println(mipsStr);

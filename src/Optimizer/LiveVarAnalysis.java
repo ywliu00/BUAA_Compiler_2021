@@ -65,7 +65,8 @@ public class LiveVarAnalysis {
                 inst.getType() == IRElem.RSHIFT || inst.getType() == IRElem.GRE ||
                 inst.getType() == IRElem.GEQ || inst.getType() == IRElem.LSS ||
                 inst.getType() == IRElem.LEQ || inst.getType() == IRElem.EQL ||
-                inst.getType() == IRElem.NEQ || inst.getType() == IRElem.LOAD) {
+                inst.getType() == IRElem.NEQ || inst.getType() == IRElem.LOAD ||
+                inst.getType() == IRElem.RASHIFT || inst.getType() == IRElem.AND) {
             IRSymbol op1 = inst.getOp1();
             IRSymbol op2 = inst.getOp2();
             IRSymbol op3 = inst.getOp3();

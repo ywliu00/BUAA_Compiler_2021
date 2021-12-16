@@ -3,6 +3,7 @@ package Optimizer;
 import IR.IRElem;
 import IR.IRSymbol;
 import IR.IRTranslater;
+import MIPSTranslatePackage.DefUseNetElem;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -22,20 +23,28 @@ public class IROptimizer {
 
     public void doOptimize() {
         PrintOpt.emptyStrOpt(iRPackage);
-        doJumpOptimize();
-        basicBlockInit(iRList);
-        ConstSpread constSpread = new ConstSpread(blockList);
-        constSpread.doConstSpread();
-        LiveVarAnalysis liveVarAnalyzer = new LiveVarAnalysis(blockList);
-        liveVarAnalyzer.liveVarAnalysis();
-        for (BasicBlock block : blockList) {
-            block.buildDAG();
-            block.reArrangeInstFromDAG();
+        for (int i = 0; i < 3; i++) {
+            doJumpOptimize();
+            basicBlockInit(iRList);
+            ConstSpread constSpread = new ConstSpread(blockList);
+            constSpread.doConstSpread();
+            LiveVarAnalysis liveVarAnalyzer = new LiveVarAnalysis(blockList);
+            liveVarAnalyzer.liveVarAnalysis();
+            for (BasicBlock block : blockList) {
+                block.buildDAG();
+                block.reArrangeInstFromDAG();
+            }
+            basicBlockToIRList();
+            if (i == 0) {
+                MultDivOpt multDivOpter = new MultDivOpt(iRPackage);
+                LinkedList<IRElem> newList = multDivOpter.powOfTwoOpt();
+                iRPackage.setiRList(newList);
+                //this.iRList = iRPackage.getIRList();
+                this.iRList = newList;
+            } else {
+                this.iRList = iRPackage.getIRList();
+            }
         }
-        basicBlockToIRList();
-        MultDivOpt multDivOpter = new MultDivOpt(iRPackage);
-        multDivOpter.powOfTwoOpt();
-        this.iRList = iRPackage.getIRList();
     }
 
     public void basicBlockInit(LinkedList<IRElem> iRList) {
@@ -105,7 +114,7 @@ public class IROptimizer {
         return labelBlockIdMap;
     }
 
-    public ArrayList<Integer> buildBasicBlockBreakpoint(LinkedList<IRElem> iRList) { // 得到所有基本块起点的位置
+    public static ArrayList<Integer> buildBasicBlockBreakpoint(LinkedList<IRElem> iRList) { // 得到所有基本块起点的位置
         int i = 0;
         HashSet<Integer> breakpointSet = new HashSet<>();
         HashMap<Integer, Integer> labelLineMap = new HashMap<>();
@@ -165,7 +174,11 @@ public class IROptimizer {
         return iRList;
     }
 
-    public StringBuilder printBasicBlock(boolean isOpted) {
+    public ArrayList<BasicBlock> getBlockList() {
+        return blockList;
+    }
+
+    public StringBuilder printBasicBlock(boolean isOpted, ArrayList<BasicBlock> blockList) {
         StringBuilder outStr = new StringBuilder(".text:\n");
         for (BasicBlock block : blockList) {
             ArrayList<BasicBlock> predecessorList = block.getPredecessors();
@@ -175,7 +188,7 @@ public class IROptimizer {
             }
             outStr.append("\n");
             LinkedList<IRElem> irList;
-            if (!isOpted){
+            if (!isOpted) {
                 irList = block.getBlockIRList();
             } else {
                 irList = block.getBlockOptInstList();
@@ -212,7 +225,32 @@ public class IROptimizer {
             for (IRSymbol symbol : inSetLVA) {
                 outStr.append("#").append(symbol.getId()).append(' ');
             }
-            outStr.append("\n\n");
+            outStr.append("\n");
+            outStr.append("Gen set: ");
+            HashSet<DefUseNetElem> genSet = block.getGenSet();
+            for (DefUseNetElem elem : genSet) {
+                outStr.append(elem).append(' ');
+            }
+            outStr.append("\n");
+            outStr.append("Kill set: ");
+            HashSet<DefUseNetElem> killSet = block.getKillSet();
+            for (DefUseNetElem elem : killSet) {
+                outStr.append(elem).append(' ');
+            }
+            outStr.append("\n");
+            outStr.append("DG in set: ");
+            HashSet<DefUseNetElem> inSetDG = block.getInSetDG();
+            for (DefUseNetElem elem : inSetDG) {
+                outStr.append(elem).append(' ');
+            }
+            outStr.append("\n");
+            outStr.append("DG out set: ");
+            HashSet<DefUseNetElem> outSetDG = block.getOutSetDG();
+            for (DefUseNetElem elem : outSetDG) {
+                outStr.append(elem).append(' ');
+            }
+            outStr.append("\n");
+            outStr.append("\n");
         }
         return outStr;
     }

@@ -923,7 +923,7 @@ public class IRTranslater {
         }
     }
 
-    public StringBuilder outputIR() {
+    public StringBuilder outputIR(LinkedList<IRElem> iRList) {
         StringBuilder outStr = new StringBuilder(".data\n");
         for (VarSymbol constVarSymbol : constantArrMap.keySet()) {
             IRSymbol constSymbol = constantArrMap.get(constVarSymbol);

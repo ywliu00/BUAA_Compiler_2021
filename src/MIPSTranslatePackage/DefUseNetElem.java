@@ -2,10 +2,12 @@ package MIPSTranslatePackage;
 
 import IR.IRSymbol;
 
+import java.util.Objects;
+
 public class DefUseNetElem {
-    IRSymbol symbol;
-    int blockID;
-    int lineNo;
+    private IRSymbol symbol;
+    private int blockID;
+    private int lineNo;
 
     public DefUseNetElem(IRSymbol symbol, int blockID, int lineNo) {
         this.symbol = symbol;
@@ -15,6 +17,10 @@ public class DefUseNetElem {
 
     public IRSymbol getSymbol() {
         return symbol;
+    }
+
+    public void setSymbol(IRSymbol symbol) {
+        this.symbol = symbol;
     }
 
     public int getBlockID() {
@@ -31,5 +37,18 @@ public class DefUseNetElem {
                 ", B" + blockID +
                 ", " + lineNo +
                 '>';
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        DefUseNetElem elem = (DefUseNetElem) o;
+        return blockID == elem.blockID && lineNo == elem.lineNo && Objects.equals(symbol, elem.symbol);
+    }
+
+    @Override
+    public int hashCode() {
+        return Objects.hash(symbol, blockID, lineNo);
     }
 }

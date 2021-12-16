@@ -2,6 +2,7 @@ package Optimizer;
 
 import IR.IRElem;
 import IR.IRImmSymbol;
+import IR.IRLabelManager;
 import IR.IRSymbol;
 import IR.IRTranslater;
 
@@ -12,6 +13,8 @@ import java.util.LinkedList;
 public class MultDivOpt {
     private IRTranslater iRPackage;
     private HashMap<Integer, Integer> shiftBits;
+    private HashMap<Integer, ArrayList<IRElem>> addList;
+    private IRLabelManager labelManager;
 
     public MultDivOpt(IRTranslater iRPackage) {
         this.iRPackage = iRPackage;
@@ -20,9 +23,11 @@ public class MultDivOpt {
             this.shiftBits.put(j, i);
             j = j * 2;
         }
+        this.addList = new HashMap<>();
+        this.labelManager = IRLabelManager.getIRLabelManager();
     }
 
-    public void powOfTwoOpt() {
+    public LinkedList<IRElem> powOfTwoOpt() {
         IRElem inst;
         ArrayList<IRElem> iRList = new ArrayList<>(iRPackage.getIRList());
         for (int i = 0; i < iRList.size(); i++) {
@@ -68,9 +73,26 @@ public class MultDivOpt {
                         int shiftBit = shiftBits.getOrDefault(((IRImmSymbol) op2).getValue(), -1);
                         if (shiftBit != -1) {
                             IRSymbol result = new IRImmSymbol(shiftBit);
-                            iRList.set(i, new IRElem(IRElem.RASHIFT, inst.getOp3(), op1, result));
+                            //iRList.set(i, new IRElem(IRElem.RASHIFT, inst.getOp3(), op1, result));
                             // 此处需要算术右移
+
+                            IRSymbol judgeSymbol = labelManager.allocSymbol();
+                            ArrayList<IRElem> replaceInstList = new ArrayList<>();
+                            replaceInstList.add(new IRElem(IRElem.GEQ, judgeSymbol, op1, IRImmSymbol.ZERO));
+                            IRSymbol leqZero = labelManager.allocSymbol();
+                            IRSymbol endSymbol = labelManager.allocSymbol();
+                            replaceInstList.add(new IRElem(IRElem.BZ, leqZero, judgeSymbol)); // 不大于0则跳转到原来的地方
+                            replaceInstList.add(new IRElem(IRElem.RASHIFT, inst.getOp3(), op1, result)); // 大于等于0，可以算术右移
+                            replaceInstList.add(new IRElem(IRElem.BR, endSymbol)); // 算完结束
+                            replaceInstList.add(new IRElem(IRElem.LABEL, leqZero)); // 小于0从此开始
+                            replaceInstList.add(inst); // 按原指令算
+                            replaceInstList.add(new IRElem(IRElem.LABEL, endSymbol)); // 结束标签
+                            addList.put(i, replaceInstList);
                         }
+                    }
+                } else if (op1 instanceof IRImmSymbol) {
+                    if (((IRImmSymbol) op1).getValue() == 0) { // 0除以任何数
+                        iRList.set(i, new IRElem(IRElem.ASSIGN, inst.getOp3(), op1));
                     }
                 }
             } else if (inst.getType() == IRElem.MOD) {
@@ -88,13 +110,40 @@ public class MultDivOpt {
                         int shiftBit = shiftBits.getOrDefault(((IRImmSymbol) op2).getValue(), -1);
                         if (shiftBit != -1) {
                             IRSymbol result = new IRImmSymbol(((IRImmSymbol) op2).getValue() - 1);
-                            iRList.set(i, new IRElem(IRElem.AND, inst.getOp3(), op1, result));
+                            //iRList.set(i, new IRElem(IRElem.AND, inst.getOp3(), op1, result));
                             // 此处AND一下就行
+                            IRSymbol judgeSymbol = labelManager.allocSymbol();
+                            ArrayList<IRElem> replaceInstList = new ArrayList<>();
+                            replaceInstList.add(new IRElem(IRElem.GEQ, judgeSymbol, op1, IRImmSymbol.ZERO));
+                            IRSymbol leqZero = labelManager.allocSymbol();
+                            IRSymbol endSymbol = labelManager.allocSymbol();
+                            replaceInstList.add(new IRElem(IRElem.BZ, leqZero, judgeSymbol)); // 不大于0则跳转到原来的地方
+                            replaceInstList.add(new IRElem(IRElem.AND, inst.getOp3(), op1, result)); // 大于等于0，可以直接AND
+                            replaceInstList.add(new IRElem(IRElem.BR, endSymbol)); // 算完结束
+                            replaceInstList.add(new IRElem(IRElem.LABEL, leqZero)); // 小于0从此开始
+                            replaceInstList.add(inst); // 按原指令算
+                            replaceInstList.add(new IRElem(IRElem.LABEL, endSymbol)); // 结束标签
+                            addList.put(i, replaceInstList);
                         }
+                    }
+                } else if (op1 instanceof IRImmSymbol) {
+                    if (((IRImmSymbol) op1).getValue() == 0) { // 0 mod任何数
+                        iRList.set(i, new IRElem(IRElem.ASSIGN, inst.getOp3(), op1));
                     }
                 }
             }
         }
-        iRPackage.setiRList(new LinkedList<>(iRList));
+        LinkedList<IRElem> newIRList = new LinkedList<>();
+        for (int i = 0; i < iRList.size(); i++) {
+            ArrayList<IRElem> replaceList = addList.getOrDefault(i, null);
+            if (replaceList != null) {
+                newIRList.addAll(replaceList);
+            } else {
+                newIRList.add(iRList.get(i));
+            }
+        }
+        //iRPackage.setiRList(new LinkedList<>(iRList));
+        iRPackage.setiRList(newIRList);
+        return newIRList;
     }
 }
