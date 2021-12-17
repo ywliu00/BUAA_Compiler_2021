@@ -22,6 +22,35 @@ public class IROptimizer {
         this.iRList = iRPackage.getIRList();
     }
 
+    public void doOptimizeWithNewLVA() {
+        PrintOpt.emptyStrOpt(iRPackage);
+        for (int i = 0; i < 5; i++) {
+            doJumpOptimize();
+            basicBlockInit(iRList);
+            ConstSpread constSpread = new ConstSpread(blockList);
+            constSpread.doConstSpread();
+            for (BasicBlock block : blockList) {
+                block.buildDAG();
+            }
+            LiveVarAnalysis liveVarAnalyzer = new LiveVarAnalysis(blockList);
+            liveVarAnalyzer.liveVarAnalysisWithBlock();
+            for (BasicBlock block : blockList) {
+                block.reArrangeInstFromDAG();
+            }
+            basicBlockToIRList();
+            if (i == 0) {
+                MultDivOpt multDivOpter = new MultDivOpt(iRPackage);
+                LinkedList<IRElem> newList = multDivOpter.powOfTwoOpt();
+                iRPackage.setiRList(newList);
+                //this.iRList = iRPackage.getIRList();
+                this.iRList = newList;
+            } else {
+                this.iRList = iRPackage.getIRList();
+            }
+            constInstCal();
+        }
+    }
+
     public void doOptimize() {
         PrintOpt.emptyStrOpt(iRPackage);
         for (int i = 0; i < 5; i++) {

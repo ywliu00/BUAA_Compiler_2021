@@ -16,6 +16,34 @@ public class LiveVarAnalysis {
         this.blockList = blockList;
     }
 
+    public void liveVarAnalysisWithBlock() { // 活跃变量分析
+        //blockSetCal(); // 先计算use和def集合
+        boolean changed = true;
+        for (BasicBlock block : blockList) { // 全部置空
+            block.setInSetLVA(new HashSet<>());
+        }
+        while (changed) {
+            changed = false;
+            for (int i = blockList.size() - 1; i >= 0; i--) {
+                BasicBlock curBlock = blockList.get(i);
+                HashSet<IRSymbol> outSet = new HashSet<>();
+                for (BasicBlock succBlock : curBlock.getSuccessors()) {
+                    outSet.addAll(succBlock.getInSetLVA());
+                }
+                curBlock.setOutSetLVA(outSet);
+                /*HashSet<IRSymbol> inSet = new HashSet<>(outSet);
+                inSet.removeAll(curBlock.getDefSet());
+                inSet.addAll(curBlock.getUseSet());*/
+                HashSet<IRSymbol> inSet = curBlock.inSetCal(outSet);
+                if (!inSet.equals(curBlock.getInSetLVA())) { // 若有更新则in和out均更新
+                    changed = true;
+                    curBlock.setInSetLVA(inSet);
+                }
+
+            }
+        }
+    }
+
     public void liveVarAnalysis() { // 活跃变量分析
         blockSetCal(); // 先计算use和def集合
         boolean changed = true;

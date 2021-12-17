@@ -2,6 +2,7 @@ package Optimizer;
 
 import IR.IRElem;
 import IR.IRFuncSymbol;
+import IR.IRImmSymbol;
 import IR.IRLabelManager;
 import IR.IRSymbol;
 import MIPSTranslatePackage.DefUseNetElem;
@@ -152,12 +153,13 @@ public class BasicBlock {
         this.dag = graph;
     }
 
-    public LinkedList<IRElem> reArrangeInstFromDAG() {
+    public HashSet<IRSymbol> inSetCal(HashSet<IRSymbol> outSet) {
+        LinkedList<DAGNode> depList = new LinkedList<>();
         HashSet<DAGNode> visited = new HashSet<>();
-        for (IRSymbol liveSymbol : outSetLVA) {
+        for (IRSymbol liveSymbol : outSet) {
             DAGNode node = dag.getNode(liveSymbol);
             if (node != null) { // 能找到，被修改过
-                depthFirstSearch(node, visited);
+                depthFirstSearch(node, visited, depList);
             }
         }
         LinkedList<DAGNode> ioList = dag.getIoList();
@@ -165,7 +167,7 @@ public class BasicBlock {
         if (!ioList.isEmpty()) { // 连通，找最后一个就行
             ioLastNode = ioList.getLast();
             if (!visited.contains(ioLastNode)) {
-                depthFirstSearch(ioLastNode, visited);
+                depthFirstSearch(ioLastNode, visited, depList);
             }
         }
         ArrayList<DAGNode> memList = dag.getMemList();
@@ -174,16 +176,61 @@ public class BasicBlock {
             memLastModifyNode = memList.get(i);
             if (memLastModifyNode.getType() != IRElem.LOAD) {
                 if (!visited.contains(memLastModifyNode)) {
-                    depthFirstSearch(memLastModifyNode, visited);
+                    depthFirstSearch(memLastModifyNode, visited, depList);
                 }
                 break;
             }
         }
         if (dag.getSetRetNode() != null) { // setret语句
-            depthFirstSearch(dag.getSetRetNode(), visited);
+            depthFirstSearch(dag.getSetRetNode(), visited, depList);
         }
         if (dag.getBlockEndNode() != null) { // 块结束语句
-            depthFirstSearch(dag.getBlockEndNode(), visited);
+            depthFirstSearch(dag.getBlockEndNode(), visited, depList);
+        }
+        HashSet<IRSymbol> inSet = new HashSet<>();
+        for (DAGNode node : depList) {
+            if (node.getType()==DAGClass.DAGLEAF) {
+                IRSymbol oldSymbol = node.getLeafOldSymbol();
+                if (!(oldSymbol instanceof IRImmSymbol)){
+                    inSet.add(oldSymbol);
+                }
+            }
+        }
+        return inSet;
+    }
+
+    public LinkedList<IRElem> reArrangeInstFromDAG() {
+        HashSet<DAGNode> visited = new HashSet<>();
+        for (IRSymbol liveSymbol : outSetLVA) {
+            DAGNode node = dag.getNode(liveSymbol);
+            if (node != null) { // 能找到，被修改过
+                depthFirstSearch(node, visited, calculateList);
+            }
+        }
+        LinkedList<DAGNode> ioList = dag.getIoList();
+        DAGNode ioLastNode;
+        if (!ioList.isEmpty()) { // 连通，找最后一个就行
+            ioLastNode = ioList.getLast();
+            if (!visited.contains(ioLastNode)) {
+                depthFirstSearch(ioLastNode, visited, calculateList);
+            }
+        }
+        ArrayList<DAGNode> memList = dag.getMemList();
+        DAGNode memLastModifyNode = null;
+        for (int i = memList.size() - 1; i >= 0; i--) { // 连通，找最后一个就行
+            memLastModifyNode = memList.get(i);
+            if (memLastModifyNode.getType() != IRElem.LOAD) {
+                if (!visited.contains(memLastModifyNode)) {
+                    depthFirstSearch(memLastModifyNode, visited, calculateList);
+                }
+                break;
+            }
+        }
+        if (dag.getSetRetNode() != null) { // setret语句
+            depthFirstSearch(dag.getSetRetNode(), visited, calculateList);
+        }
+        if (dag.getBlockEndNode() != null) { // 块结束语句
+            depthFirstSearch(dag.getBlockEndNode(), visited, calculateList);
         }
 
         LinkedList<IRElem> instList = new LinkedList<>();
@@ -461,21 +508,21 @@ public class BasicBlock {
         return blockOptInstList;
     }
 
-    public void depthFirstSearch(DAGNode node, HashSet<DAGNode> visited) {
+    public void depthFirstSearch(DAGNode node, HashSet<DAGNode> visited, LinkedList<DAGNode> calculateList) {
         if (node == null || visited.contains(node)) {
             return;
         }
         visited.add(node);
         if (node.getLChild() != null) {
-            depthFirstSearch(node.getLChild(), visited);
+            depthFirstSearch(node.getLChild(), visited, calculateList);
         }
         if (node.getRChild() != null) {
-            depthFirstSearch(node.getRChild(), visited);
+            depthFirstSearch(node.getRChild(), visited, calculateList);
         }
         ArrayList<DAGNode> dependency = node.getDependencyArr();
         for (DAGNode depNode : dependency) {
             if (depNode != null && !visited.contains(depNode)) {
-                depthFirstSearch(depNode, visited);
+                depthFirstSearch(depNode, visited, calculateList);
             }
         }
         calculateList.add(node);
